@@ -33,8 +33,16 @@ class ScanState(StrEnum):
     """Completion state of a scan."""
 
     COMPLETED = "COMPLETED"
-    INCOMPLETE = "INCOMPLETE"
+    PARTIAL = "PARTIAL"
     FAILED = "FAILED"
+
+
+class ScanErrorKind(StrEnum):
+    """Origin of a non-vulnerability operational scan error."""
+
+    TARGET = "TARGET"
+    NETWORK = "NETWORK"
+    CHECK = "CHECK"
 
 
 class Grade(StrEnum):

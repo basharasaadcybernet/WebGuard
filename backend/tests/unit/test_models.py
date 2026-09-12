@@ -36,7 +36,7 @@ def metadata() -> ScanMetadata:
         duration_ms=12,
         webguard_version="0.1.0",
         ruleset_version="0.1.0",
-        state=ScanState.INCOMPLETE,
+        state=ScanState.PARTIAL,
     )
 
 

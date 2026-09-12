@@ -1,12 +1,20 @@
 """Stable domain contracts shared by all future interfaces."""
 
-from webguard.domain.enums import FindingStatus, Grade, HttpScheme, ScanState, Severity
+from webguard.domain.enums import (
+    FindingStatus,
+    Grade,
+    HttpScheme,
+    ScanErrorKind,
+    ScanState,
+    Severity,
+)
 from webguard.domain.models import (
     CategoryScore,
     Evidence,
     FetchHop,
     Finding,
     NormalizedTarget,
+    ScanError,
     ScanMetadata,
     ScanRequest,
     ScanResult,
@@ -22,6 +30,8 @@ __all__ = [
     "Grade",
     "HttpScheme",
     "NormalizedTarget",
+    "ScanError",
+    "ScanErrorKind",
     "ScanMetadata",
     "ScanRequest",
     "ScanResult",

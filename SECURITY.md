@@ -56,6 +56,21 @@ Targets and results are not persisted by default. Cookie values, authorization v
 queries must not enter findings or logs. Untrusted response content must be escaped before any
 future HTML rendering.
 
+## Phase 4 orchestration boundary
+
+`ScanEngine` creates one `RequestBudget` per scan and gives it only to `ScanNetworkService`.
+Landing-page retrieval and every future auxiliary observation therefore consume the same bounded
+resource. Checks receive only `ScanContext` and cannot make network requests directly.
+
+Internal bounded body content is available to trusted in-process checks but is never serialized in
+`ScanResult`. Response authorization values are removed, cookie values are redacted, sensitive URL
+queries remain excluded, and public redirect locations pass through URL redaction. Check exception
+messages and tracebacks are not exposed: public errors use fixed safe codes and messages.
+
+Operational failures remain separate from vulnerabilities. A target-policy or network failure is
+a failed scan, while an isolated check failure is a partial scan. A negative security finding is a
+valid check result and does not become an operational error.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule

@@ -53,9 +53,24 @@ def redact_header(name: str, value: str) -> str:
     """Redact sensitive HTTP header values while preserving safe diagnostics."""
     lowered = name.lower().strip()
     if lowered == "set-cookie":
-        cookie_name = value.split("=", 1)[0].strip()
-        safe_name = sanitize_text(cookie_name, maximum=100) or "cookie"
-        return f"{safe_name}=[redacted]"
+        parts = value.split(";")
+        cookie_name, separator, _ = parts[0].partition("=")
+        safe_name = sanitize_text(cookie_name, maximum=100) if separator else "cookie"
+        safe_name = safe_name or "cookie"
+        safe_attributes: list[str] = []
+        for raw_attribute in parts[1:]:
+            attribute, separator, attribute_value = raw_attribute.strip().partition("=")
+            lowered_attribute = attribute.lower()
+            if lowered_attribute == "secure":
+                safe_attributes.append("Secure")
+            elif lowered_attribute == "httponly":
+                safe_attributes.append("HttpOnly")
+            elif lowered_attribute == "samesite" and separator:
+                same_site = sanitize_text(attribute_value, maximum=20)
+                if same_site.lower() in {"strict", "lax", "none"}:
+                    safe_attributes.append(f"SameSite={same_site}")
+        suffix = "; " + "; ".join(safe_attributes) if safe_attributes else ""
+        return f"{safe_name}=[redacted]{suffix}"
     if lowered in _SENSITIVE_KEYS:
         return "[redacted]"
     return sanitize_text(value)

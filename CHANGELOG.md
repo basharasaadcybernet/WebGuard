@@ -15,6 +15,11 @@ begin.
   transport failures, streamed limits, malformed responses, and resource cleanup.
 - Opt-in harmless public-network smoke tests, excluded from normal pytest runs.
 - Git ignore rules for environments, caches, IDE state, secrets, reports, and build artifacts.
+- Phase 4 immutable scan observations, typed check protocol, explicit deterministic registry,
+  centralized scan network service, and sequential `ScanEngine` orchestration.
+- Public operational error contracts and explicit `COMPLETED`, `PARTIAL`, and `FAILED` scan states.
+- Check failure isolation, shared per-scan request budgets, safe internal-to-public hop conversion,
+  and architecture tests preventing networking imports in future check modules.
 
 ### Fixed
 
@@ -27,3 +32,7 @@ begin.
 
 - Expose HTTPS-to-HTTP redirect downgrade observation for future rule evaluation.
 - Assert that the TLS context requires certificate and hostname verification.
+- Redact response authorization and cookie values before checks receive headers, while retaining
+  non-secret cookie flags needed by future rules.
+- Keep check exception details, response bodies, and sensitive target queries out of public scan
+  serialization.

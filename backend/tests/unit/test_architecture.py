@@ -49,6 +49,46 @@ def test_raw_socket_access_is_confined_to_security_boundary() -> None:
                 violations.append(str(path.relative_to(source_root)))
 
     assert not violations, (
-        "Raw socket access must remain inside the security boundary. "
+        f"Raw socket access must remain inside the security boundary. Violations: {violations}"
+    )
+
+
+def test_check_modules_cannot_import_networking_paths() -> None:
+    source_root = Path(__file__).parents[2] / "src" / "webguard"
+    checks_root = source_root / "checks"
+    forbidden_roots = {
+        "aiohttp",
+        "ftplib",
+        "http",
+        "httpcore",
+        "httpx",
+        "requests",
+        "smtplib",
+        "socket",
+        "urllib",
+        "urllib3",
+        "websockets",
+    }
+    forbidden_internal = {"webguard.scanner.network"}
+    violations: list[str] = []
+
+    for path in checks_root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            for name in names:
+                if (
+                    name.split(".", 1)[0] in forbidden_roots
+                    or name in forbidden_internal
+                    or name.startswith("webguard.security")
+                ):
+                    violations.append(f"{path.relative_to(source_root)} imports {name}")
+
+    assert not violations, (
+        "Checks receive ScanContext and must not import network clients or raw networking. "
         f"Violations: {violations}"
     )

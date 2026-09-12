@@ -100,3 +100,51 @@ Run the optional tests explicitly with:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -m live backend/tests/live
 ```
+
+## What an orchestrator does
+
+An orchestrator coordinates a complete scan. WebGuard's `ScanEngine` validates the request,
+normalizes the target, creates one request budget, asks the protected client for observations,
+runs checks in a fixed order, and assembles the result. It coordinates these jobs without becoming
+a security rule itself.
+
+## What ScanContext is
+
+`ScanContext` is an immutable snapshot of what WebGuard safely observed for one scan: the target,
+landing response, redirect responses, sanitized headers, bounded body content, connection metadata,
+budget state, timestamps, and notices. All checks see the same snapshot, so one check cannot change
+the evidence seen by another. It is an internal object, not a public report model.
+
+## Why checks are independent
+
+Each check should answer one narrow security question from the shared observations. If checks
+mutate each other's data or depend on execution side effects, one bug can make unrelated results
+unreliable. Independent checks are easier to test, reason about, and continue safely after a
+failure.
+
+## Why networking is centralized
+
+A normal HTTP request is dangerous when the destination is controlled by a user. Centralizing all
+requests keeps URL policy, DNS validation, destination pinning, redirects, timeouts, body limits,
+and the shared request budget in one protected path. If a future rule needs `security.txt` or an
+HTTP probe, orchestration must collect that observation through `ScanNetworkService`; the rule does
+not open the connection itself.
+
+## What failure isolation means
+
+Failure isolation means a broken check does not automatically erase useful results from independent
+checks. WebGuard catches expected evaluation failures and unexpected check exceptions, records a
+safe error without a traceback, continues in deterministic order, and marks the scan `PARTIAL`.
+
+Three outcomes must not be confused:
+
+- A vulnerability finding is a successfully evaluated security result, including a negative one.
+- A check error means WebGuard could not evaluate one rule reliably.
+- A network error means the protected client could not collect the main observations, so the scan
+  is `FAILED`.
+
+## Why deterministic execution matters
+
+Security results must be reproducible. Stable ordering by configured priority and rule ID makes
+output, tests, diffs, debugging, and later scoring predictable. Phase 4 therefore runs checks
+sequentially and rejects duplicate rule IDs instead of relying on discovery order or concurrency.

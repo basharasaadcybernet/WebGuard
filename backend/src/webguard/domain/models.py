@@ -20,7 +20,14 @@ from pydantic import (
     model_validator,
 )
 
-from webguard.domain.enums import FindingStatus, Grade, HttpScheme, ScanState, Severity
+from webguard.domain.enums import (
+    FindingStatus,
+    Grade,
+    HttpScheme,
+    ScanErrorKind,
+    ScanState,
+    Severity,
+)
 
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _RULE_ID = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
@@ -233,6 +240,45 @@ class ScanMetadata(ContractModel):
         return self
 
 
+class ScanError(ContractModel):
+    """Safe operational error that is explicitly not a vulnerability finding."""
+
+    kind: ScanErrorKind
+    code: Annotated[
+        str,
+        StringConstraints(
+            min_length=3,
+            max_length=100,
+            pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+        ),
+    ]
+    message: ShortText
+    rule_id: (
+        Annotated[
+            str,
+            StringConstraints(
+                min_length=3,
+                max_length=100,
+                pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+            ),
+        ]
+        | None
+    ) = None
+
+    @field_validator("message")
+    @classmethod
+    def reject_unsafe_message(cls, value: str) -> str:
+        if _CONTROL_CHARACTERS.search(value) or "\r" in value or "\n" in value:
+            raise ValueError("Scan error message cannot contain controls or newlines")
+        return value
+
+    @model_validator(mode="after")
+    def validate_rule_relationship(self) -> ScanError:
+        if (self.kind is ScanErrorKind.CHECK) != (self.rule_id is not None):
+            raise ValueError("Only check errors carry a rule identifier")
+        return self
+
+
 DISCLAIMER = (
     "This score reflects only the security controls tested by WebGuard and does not prove "
     "that the website is free of vulnerabilities."
@@ -242,9 +288,10 @@ DISCLAIMER = (
 class ScanResult(ContractModel):
     """Top-level result shared by the future CLI, API, UI, and reporters."""
 
-    target: NormalizedTarget
+    target: NormalizedTarget | None
     hops: tuple[FetchHop, ...] = ()
     findings: tuple[Finding, ...] = ()
+    errors: tuple[ScanError, ...] = ()
     score: ScoreBreakdown | None = None
     metadata: ScanMetadata
     disclaimer: Literal[

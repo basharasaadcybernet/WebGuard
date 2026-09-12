@@ -10,7 +10,8 @@ def test_redacts_url_credentials_query_and_fragment() -> None:
 
 def test_redacts_sensitive_headers_and_cookie_value() -> None:
     assert redact_header("Authorization", "Bearer secret") == "[redacted]"
-    assert redact_header("Set-Cookie", "session=secret; Secure") == "session=[redacted]"
+    assert redact_header("Set-Cookie", "session=secret; Secure") == ("session=[redacted]; Secure")
+    assert redact_header("Set-Cookie", "malformed-secret") == "cookie=[redacted]"
     assert redact_header("Server", "example\r\nInjected") == "example Injected"
 
 

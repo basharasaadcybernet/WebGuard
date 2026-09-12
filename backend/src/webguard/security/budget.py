@@ -19,6 +19,16 @@ class RequestBudget:
     def used(self) -> int:
         return self._used
 
+    @property
+    def maximum(self) -> int:
+        """Return the immutable per-scan request ceiling."""
+        return self._maximum
+
+    @property
+    def remaining(self) -> int:
+        """Return how many requests can still start."""
+        return self._maximum - self._used
+
     async def consume(self) -> None:
         async with self._lock:
             if self._used >= self._maximum:

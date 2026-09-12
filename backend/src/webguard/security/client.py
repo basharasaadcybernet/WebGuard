@@ -52,6 +52,10 @@ class SafeFetchResult:
 
     responses: tuple[SafeResponse, ...]
 
+    def __post_init__(self) -> None:
+        if not self.responses:
+            raise ValueError("A safe fetch result must contain at least one response")
+
     @property
     def final(self) -> SafeResponse:
         return self.responses[-1]
@@ -131,3 +135,7 @@ class SafeHttpClient:
             redirected_url = urljoin(current.request_url, locations[0])
             current = self._url_policy.normalize(redirected_url)
             redirects_followed += 1
+
+    def normalize(self, raw_url: str) -> NormalizedTarget:
+        """Normalize a target through the same policy used immediately before fetching."""
+        return self._url_policy.normalize(raw_url)
