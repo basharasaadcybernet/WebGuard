@@ -9,8 +9,8 @@ The package uses a `src` layout under `backend/src/webguard`. The implemented la
    budgets, destination pinning, and bounded HTTP retrieval.
 3. `scanner`: immutable observations, the typed check protocol, an explicit deterministic
    registry, centralized per-scan network service, and failure-isolating orchestration.
-4. `checks`: twelve explicitly registered Phase 5A transport and header rules that inspect only
-   `ScanContext` observations.
+4. `checks`: nineteen explicitly registered Phase 5B transport, header, cookie, content, and
+   hygiene rules that inspect only `ScanContext` observations.
 
 The security package is deliberately the only public home for outbound networking. Future
 scanner checks receive an immutable `ScanContext`; they do not receive a raw HTTP client or the
@@ -31,9 +31,10 @@ future CLI / API / reports
        /      \
 ScanContext  CheckRegistry
      |          |
- observations  sequential checks
+ observations  metadata declarations + sequential checks
           |
-ScanNetworkService -- landing + HTTPS + one-hop HTTP, one RequestBudget
+ScanNetworkService -- landing + HTTPS + one-hop HTTP + security.txt
+          |                 one shared RequestBudget
           |
     SafeHttpClient
   |       |       |
@@ -55,7 +56,7 @@ non-vulnerability `ScanError` records.
 Checks run sequentially by `(order, rule_id)`. A check may be inapplicable, return structured
 findings, raise an expected evaluation error, or crash. Check failures are isolated and produce a
 `PARTIAL` scan; target or protected-network failures produce `FAILED`; negative findings do not
-change an otherwise `COMPLETED` scan. Phase 5A deliberately calculates no score.
+change an otherwise `COMPLETED` scan. Phase 5B deliberately calculates no score.
 
 For transport checks, the orchestrator reuses successful landing-chain observations when possible.
 Otherwise it makes a direct HTTPS observation and a one-hop HTTP observation through
@@ -65,12 +66,22 @@ bounded failure category: expired, hostname mismatch, or untrusted chain.
 
 The default registry is explicit: transport and TLS checks run first, followed by header checks.
 Header checks inspect the final landing response; HSTS applies only to HTTPS and CSP/clickjacking
-apply only to HTML-like content. No check imports the network or security layer.
+apply only to HTML-like content. Cookie checks inspect redacted `Set-Cookie` metadata across the
+landing chain, mixed content parses only the bounded final HTTPS HTML, and disclosure checks read
+only explicitly returned headers. No check imports the network or security layer.
+
+`CheckMetadata.auxiliary_requests` is the only Phase 5B observation declaration mechanism. The
+`hygiene.security_txt` rule declares one fixed HTTPS path; `ScanEngine` gathers unique compatible
+declarations in registry order, builds URLs from the normalized target hostname without its query,
+and routes `fetch` or `fetch_once` through `ScanNetworkService`. The resulting named
+`AuxiliaryObservation` enters immutable `ScanContext`. Redirects repeat URL, DNS, IP, and pinned
+transport validation, and every hop consumes the same scan budget. A rule sees a success or a safe
+failure category, never a client, resolver, transport, or arbitrary-URL fetch primitive.
 
 ## Deferred components
 
-Cookie, security.txt, mixed-content, and server-disclosure rules remain deferred, as do scoring,
-reports, REST endpoints, CLI scan commands, and the frontend.
+Scoring, grades, reports, REST endpoints, CLI scan commands, persistence, and the frontend remain
+deferred. Active exploitation, fuzzing, enumeration, and port scanning are outside product scope.
 
 ## Current limitations
 
@@ -79,5 +90,5 @@ answer if the connection fails. It requests identity encoding and fails closed w
 compressed content anyway; bounded streaming decompression can be added later without weakening
 the size limit. Application-wide concurrency limits belong to the future orchestration/API layer.
 
-Phase 5A uses controlled transport and rule fixtures as its source of truth. The normal suite
+Phase 5B uses controlled transport and rule fixtures as its source of truth. The normal suite
 remains fully deterministic and never requires external DNS or Internet access.

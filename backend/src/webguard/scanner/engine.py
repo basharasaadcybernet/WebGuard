@@ -18,8 +18,9 @@ from webguard.domain.models import (
     ScanRequest,
     ScanResult,
 )
-from webguard.scanner.checks import CheckEvaluationError, CheckResult
+from webguard.scanner.checks import AuxiliaryRequest, CheckEvaluationError, CheckResult
 from webguard.scanner.context import (
+    AuxiliaryObservation,
     ProbeFailure,
     ProbeObservation,
     build_probe_observation,
@@ -146,6 +147,23 @@ class ScanEngine:
         else:
             http_probe = await self._attempt(http_target, network.fetch_once(http_url))
 
+        auxiliary: list[AuxiliaryObservation] = []
+        for observation_request in self._registry.auxiliary_requests():
+            observation_url = self._auxiliary_url(target, observation_request)
+            observation_target = network.normalize(observation_url)
+            operation = (
+                network.fetch(observation_url)
+                if observation_request.follow_redirects
+                else network.fetch_once(observation_url)
+            )
+            attempt = await self._attempt(observation_target, operation)
+            auxiliary.append(
+                AuxiliaryObservation(
+                    key=observation_request.key,
+                    probe=attempt.observation,
+                )
+            )
+
         observations_finished_at = self._clock()
         context = build_scan_context(
             target=target,
@@ -155,6 +173,7 @@ class ScanEngine:
             budget=budget,
             started_at=started_at,
             observations_finished_at=observations_finished_at,
+            auxiliary=tuple(auxiliary),
         )
         findings: list[Finding] = []
         errors: list[ScanError] = []
@@ -272,6 +291,11 @@ class ScanEngine:
     def _scheme_url(target: NormalizedTarget, scheme: HttpScheme) -> str:
         host = f"[{target.hostname}]" if ":" in target.hostname else target.hostname
         return f"{scheme.value}://{host}{target.path}"
+
+    @staticmethod
+    def _auxiliary_url(target: NormalizedTarget, request: AuxiliaryRequest) -> str:
+        host = f"[{target.hostname}]" if ":" in target.hostname else target.hostname
+        return f"{request.scheme.value}://{host}{request.path}"
 
     @staticmethod
     def _https_result_from_landing(

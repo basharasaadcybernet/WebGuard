@@ -1,6 +1,7 @@
 """Public scanner orchestration API."""
 
 from webguard.scanner.checks import (
+    AuxiliaryRequest,
     CheckEvaluationError,
     CheckMetadata,
     CheckResult,
@@ -11,6 +12,7 @@ from webguard.scanner.engine import ScanEngine
 from webguard.scanner.registry import CheckRegistry, DuplicateRuleIdError
 
 __all__ = [
+    "AuxiliaryRequest",
     "CheckEvaluationError",
     "CheckMetadata",
     "CheckRegistry",

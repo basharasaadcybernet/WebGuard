@@ -1,6 +1,6 @@
 # Security Checks
 
-Phase 5A implements twelve passive checks. Rules inspect immutable observations collected through
+Phase 5B completes nineteen initial passive checks. Rules inspect immutable observations collected through
 `SafeHttpClient`; rule modules cannot perform network requests. PASS means the limited condition
 described below was observed, not that the site is vulnerability-free. Inapplicable rules emit no
 finding. An unavailable required observation becomes an operational check error rather than a
@@ -129,4 +129,95 @@ security failure.
   exploit and does not require both CSP and XFO.
 - **References:** [OWASP Clickjacking Defense](https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html), [MDN frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors), [MDN X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options).
 
-Cookie, security.txt, mixed-content, and server-disclosure rules are not implemented in Phase 5A.
+## Cookie security
+
+Cookie attributes are parsed only from already-redacted `Set-Cookie` observations across the
+validated landing redirect chain. Values never enter check evidence. Each attribute produces one
+grouped finding: affected cookie names are sorted, deduplicated, capped for display, and summarized
+with affected/total counts. This avoids one finding per cookie while retaining actionable names.
+
+### `cookies.secure`
+
+- **Purpose:** Observe whether cookies set by HTTPS responses opt out of plaintext transport.
+- **Checks:** The `Secure` attribute on each redacted cookie observed over HTTPS.
+- **PASS:** Every HTTPS cookie observation has `Secure`.
+- **WARNING/FAIL:** Missing `Secure` is WARNING/LOW. No cookies, or cookies seen only on HTTP,
+  produce INFO/not-applicable and no security credit.
+- **Limitations:** Does not determine whether a cookie carries authentication state or observe
+  cookies set by JavaScript or unvisited routes.
+- **References:** [MDN cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies).
+
+### `cookies.http_only`
+
+- **Purpose:** Observe whether server-set cookies opt out of JavaScript access.
+- **Checks:** The `HttpOnly` attribute on redacted cookies in the landing chain.
+- **PASS:** Every observed cookie has `HttpOnly`.
+- **WARNING/FAIL:** Missing `HttpOnly` is INFO, not a vulnerability, because some cookies
+  intentionally support client-side code. No cookies produce INFO/not-applicable.
+- **Limitations:** Does not determine cookie purpose, XSS exposure, or client-side cookie usage.
+- **References:** [MDN cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies).
+
+### `cookies.same_site`
+
+- **Purpose:** Observe explicit cross-site cookie handling.
+- **Checks:** Recognized `Strict`, `Lax`, or `None`; `SameSite=None` must also have `Secure`.
+- **PASS:** Every observed cookie has a usable explicit SameSite setting.
+- **WARNING/FAIL:** Missing SameSite or `None` without `Secure` is WARNING/LOW and is described as
+  CSRF-related hardening, not proof of CSRF. No cookies produce INFO/not-applicable.
+- **Limitations:** Does not simulate browser defaults, validate application request flows, or prove
+  whether cross-site cookie use is intended.
+- **References:** [MDN cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies).
+
+## Static page content
+
+### `content.mixed_content`
+
+- **Purpose:** Find explicit plaintext resource references in the final HTTPS landing HTML.
+- **Checks:** `script`/`iframe` sources, stylesheet links, form actions, and practical image/media
+  references using literal `http://` URLs.
+- **PASS:** No explicit insecure reference is present in the bounded static HTML.
+- **WARNING/FAIL:** Script, iframe, stylesheet, or form references are WARNING/MEDIUM; only
+  image/media/other link references are WARNING/LOW.
+- **Limitations:** Uses Python's non-executing HTML parser. It does not execute JavaScript, expand
+  CSS, inspect `srcset`, download resources, or reproduce browser mixed-content decisions. Relative,
+  protocol-relative, data, invalid, and dynamically generated URLs are not reported. Duplicate URLs
+  are grouped, and displayed absolute URLs have credentials, fragments, and query values removed.
+- **References:** [MDN mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content).
+
+## Disclosure and operational hygiene
+
+### `hygiene.security_txt`
+
+- **Purpose:** Observe an RFC 9116-oriented vulnerability disclosure file.
+- **Checks:** A protected HTTPS fetch of `/.well-known/security.txt`, status 200, a 64 KiB parsing
+  ceiling inside the global response limit, `text/plain`, UTF-8, at least one Contact, exactly one
+  parseable RFC 3339 Expires, and a future expiry time.
+- **PASS:** The bounded HTTPS response has Contact and a current Expires value.
+- **WARNING/FAIL:** Absence or other non-200 response is INFO; HTTP downgrade, missing fields,
+  malformed/expired Expires, wrong media type, or invalid UTF-8 is WARNING/LOW. Network, redirect,
+  budget, or size failures are operational check errors.
+- **Limitations:** This is a small v0.1 parser, not full ABNF, signature, Canonical, or URI
+  validation. Contact and other referenced fields remain private text and are never fetched.
+- **References:** [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116.html).
+
+### `hygiene.server_disclosure`
+
+- **Purpose:** Record technology information explicitly returned in `Server`.
+- **Checks:** Header absence, generic banner text, and a conservative version-like pattern.
+- **PASS:** None; absence and generic presence are INFO and do not award artificial credit.
+- **WARNING/FAIL:** Explicit version-like detail is WARNING/LOW because it may aid inventorying.
+- **Limitations:** Does not fingerprint beyond the header, determine the true backend, or match
+  versions to CVEs. A banner is not itself an exploitable vulnerability.
+- **References:** [OWASP framework fingerprinting](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework).
+
+### `hygiene.x_powered_by`
+
+- **Purpose:** Record application technology explicitly returned in `X-Powered-By`.
+- **Checks:** Header presence and sanitized bounded text.
+- **PASS:** None; presence and absence are both INFO.
+- **WARNING/FAIL:** None in v0.1.
+- **Limitations:** Does not infer technology, verify accuracy, or perform version-to-CVE matching.
+- **References:** [OWASP framework fingerprinting](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework).
+
+No rule calculates points in Phase 5B. `ScanResult.score` remains `None` until Phase 6 defines
+weights, applicability, coverage, and grade semantics for this complete passive set.

@@ -221,3 +221,78 @@ behavior. A missing Permissions-Policy does not prove a dangerous browser featur
 missing CSP does not prove an injection bug exists. Findings therefore distinguish confirmed
 misconfiguration, recommended hardening, informational observation, and inability to evaluate.
 Severity communicates the observed posture without claiming an exploit that WebGuard did not test.
+
+## What cookies are
+
+An HTTP cookie is a small name/value item that a server asks a browser to store and send on later
+matching requests. Cookies can support login sessions, preferences, analytics, shopping carts, and
+many other purposes. Seeing a cookie does not tell WebGuard which purpose it serves.
+
+WebGuard never exposes the value. It keeps only the cookie name and three recognized attributes:
+Secure, HttpOnly, and SameSite. Multiple affected cookies are grouped into one finding per
+attribute so a page that sets many cookies does not produce a wall of duplicate findings.
+
+### Secure
+
+`Secure` tells a browser to send the cookie only over HTTPS. Missing it on a cookie delivered by an
+HTTPS response is useful hardening evidence, but WebGuard does not assume that every cookie is an
+authentication cookie. That is why the result is conservative rather than HIGH severity.
+
+### HttpOnly
+
+`HttpOnly` prevents JavaScript from reading a cookie through ordinary browser APIs. It can reduce
+the exposure of session cookies if script injection occurs. Some preference or integration cookies
+intentionally need JavaScript access, however, so missing HttpOnly is informational and is not
+automatically a vulnerability.
+
+### SameSite
+
+`SameSite` controls when a browser includes a cookie with cross-site requests. `Strict` is most
+restrictive, `Lax` permits selected navigation flows, and `None` permits cross-site use but must be
+paired with `Secure` in modern browsers. A missing setting can weaken CSRF-related hardening, but it
+does not prove a cross-site request forgery flaw: exploitability also depends on application
+actions, request validation, browser behavior, and other defenses.
+
+## security.txt and responsible disclosure
+
+`security.txt` is a small, machine-readable policy file defined by RFC 9116. A site publishes it at
+`https://domain/.well-known/security.txt` so researchers can find an approved contact and current
+vulnerability-disclosure instructions. Contact tells a researcher where to report; Expires signals
+when the published information has become stale.
+
+Responsible vulnerability disclosure means reporting a suspected flaw through the owner's stated
+channel, limiting unnecessary exposure, respecting authorization and scope, and giving the owner a
+reasonable opportunity to investigate. A security.txt file helps communication; it does not grant
+permission to test a system and its absence is not a vulnerability.
+
+WebGuard fetches only the well-known file through its protected network boundary. It does not fetch
+Contact, Policy, Encryption, Canonical, or other URLs found inside the document. Phase 5B checks a
+small useful subset: HTTPS delivery, successful bounded UTF-8 plain text, Contact presence, and one
+future RFC 3339 Expires value. It is not a complete signature or ABNF validator.
+
+## Mixed content
+
+Mixed content occurs when an HTTPS page refers to a resource over plaintext HTTP. HTTPS protects
+the page connection, but an insecure subresource can still be observed or modified on the network.
+
+Active or blockable content such as scripts, iframes, stylesheets, and form submissions can affect
+page behavior or sensitive user actions, so WebGuard gives those static references more weight.
+Images, audio, and video are lower-risk passive/display content in this simplified classification,
+although they still create privacy and integrity concerns.
+
+Phase 5B is deliberately a static check. It parses only the bounded final landing HTML, executes no
+JavaScript, downloads no resources, and does not act like a browser. Dynamically generated URLs,
+CSS references, `srcset`, and browser upgrade/blocking behavior can therefore create false
+negatives or make a reported literal reference harmless in practice.
+
+## Information disclosure and server banners
+
+Response headers such as `Server` and `X-Powered-By` can name software chosen by a server or
+framework. A detailed version may help someone inventory a deployment, but banner text can be
+generic, removed, stale, misleading, or supplied by an intermediary. Presence is therefore usually
+informational, and hiding a banner is not a substitute for patching the real service.
+
+WebGuard does not match banner versions to CVEs. Reliable vulnerability matching would require an
+accurate product identity, build and vendor-patch knowledge, configuration context, and a current
+vulnerability database. A header cannot provide that proof. Phase 5B records only what the server
+explicitly returned and never claims that a named version is exploitable.

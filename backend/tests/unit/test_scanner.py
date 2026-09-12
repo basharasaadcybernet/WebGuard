@@ -10,6 +10,7 @@ import pytest
 from webguard.domain.enums import FindingStatus, ScanErrorKind, ScanState, Severity
 from webguard.domain.models import Finding, NormalizedTarget, ScanRequest
 from webguard.scanner.checks import (
+    AuxiliaryRequest,
     CheckEvaluationError,
     CheckMetadata,
     CheckResult,
@@ -189,6 +190,58 @@ def test_check_protocol_and_metadata_validation() -> None:
     assert isinstance(synthetic, SecurityCheck)
     with pytest.raises(ValueError, match="stable dotted"):
         CheckMetadata(rule_id="Not Stable", title="Title", category="Category")
+
+
+def test_auxiliary_request_declarations_are_validated_and_deduplicated() -> None:
+    request = AuxiliaryRequest(key="security_txt", path="/.well-known/security.txt")
+    first = check("synthetic.first", 1)
+    second = check("synthetic.second", 2)
+    first.metadata = CheckMetadata(  # type: ignore[misc]
+        rule_id=first.metadata.rule_id,
+        title=first.metadata.title,
+        category=first.metadata.category,
+        order=first.metadata.order,
+        auxiliary_requests=(request,),
+    )
+    second.metadata = CheckMetadata(  # type: ignore[misc]
+        rule_id=second.metadata.rule_id,
+        title=second.metadata.title,
+        category=second.metadata.category,
+        order=second.metadata.order,
+        auxiliary_requests=(request,),
+    )
+    assert CheckRegistry((second, first)).auxiliary_requests() == (request,)
+
+    with pytest.raises(ValueError, match="safe absolute path"):
+        AuxiliaryRequest(key="unsafe", path="//attacker.example/path")
+    with pytest.raises(ValueError, match="stable lowercase"):
+        AuxiliaryRequest(key="Not-Stable", path="/safe")
+    with pytest.raises(ValueError, match="keys must be unique"):
+        CheckMetadata(
+            rule_id="synthetic.duplicate",
+            title="duplicate",
+            category="Synthetic",
+            auxiliary_requests=(request, request),
+        )
+
+
+def test_conflicting_auxiliary_declarations_are_rejected() -> None:
+    first = check("synthetic.first", 1)
+    second = check("synthetic.second", 2)
+    first.metadata = CheckMetadata(  # type: ignore[misc]
+        rule_id=first.metadata.rule_id,
+        title=first.metadata.title,
+        category=first.metadata.category,
+        auxiliary_requests=(AuxiliaryRequest(key="resource", path="/one"),),
+    )
+    second.metadata = CheckMetadata(  # type: ignore[misc]
+        rule_id=second.metadata.rule_id,
+        title=second.metadata.title,
+        category=second.metadata.category,
+        auxiliary_requests=(AuxiliaryRequest(key="resource", path="/two"),),
+    )
+    with pytest.raises(ValueError, match="Conflicting auxiliary"):
+        CheckRegistry((first, second))
 
 
 def test_registry_is_deterministic_and_rejects_duplicate_ids() -> None:

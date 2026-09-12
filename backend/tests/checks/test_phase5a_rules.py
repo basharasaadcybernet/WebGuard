@@ -26,6 +26,7 @@ from webguard.domain.enums import FindingStatus, ScanState
 from webguard.domain.models import Finding, NormalizedTarget, ScanRequest
 from webguard.scanner.checks import CheckEvaluationError, SecurityCheck
 from webguard.scanner.context import (
+    AuxiliaryObservation,
     ProbeFailure,
     ScanContext,
     build_probe_observation,
@@ -143,6 +144,22 @@ def context(
             responses=(response("http://example.com/", status=http_status, headers=http_headers),)
         ),
     )
+    security_target = URLPolicy().normalize("https://example.com/.well-known/security.txt")
+    security_probe = build_probe_observation(
+        requested_target=security_target,
+        fetch_result=SafeFetchResult(
+            responses=(
+                response(
+                    security_target.request_url,
+                    headers=(("Content-Type", "text/plain"),),
+                    body=(
+                        b"Contact: mailto:security@example.com\n"
+                        b"Expires: 2027-01-01T00:00:00Z\n"
+                    ),
+                ),
+            )
+        ),
+    )
     return build_scan_context(
         target=target,
         landing=landing,
@@ -151,6 +168,7 @@ def context(
         budget=RequestBudget(8),
         started_at=NOW - timedelta(milliseconds=10),
         observations_finished_at=NOW,
+        auxiliary=(AuxiliaryObservation(key="security_txt", probe=security_probe),),
     )
 
 
@@ -163,9 +181,9 @@ def finding(check: SecurityCheck, scan_context: ScanContext) -> Finding:
 def test_real_rule_ids_are_unique_and_ordered_deterministically() -> None:
     checks = tuple(default_check_registry())
     ids = [check.metadata.rule_id for check in checks]
-    assert len(checks) == 12
+    assert len(checks) == 19
     assert len(ids) == len(set(ids))
-    assert ids == [
+    assert ids[:12] == [
         "transport.https_available",
         "transport.http_redirect",
         "transport.tls_validity",
@@ -418,6 +436,19 @@ class ControlledClient:
         assert budget is not None
         self.budgets.append(budget)
         await budget.consume()
+        if raw_url.endswith("/.well-known/security.txt"):
+            return SafeFetchResult(
+                responses=(
+                    response(
+                        raw_url,
+                        headers=(("Content-Type", "text/plain"),),
+                        body=(
+                            b"Contact: mailto:security@example.com\n"
+                            b"Expires: 2027-01-01T00:00:00Z\n"
+                        ),
+                    ),
+                )
+            )
         return self.landing
 
     async def fetch_once(
@@ -437,8 +468,8 @@ async def test_default_engine_runs_all_real_checks_with_one_shared_budget() -> N
         ScanRequest(url="https://example.com/")
     )
     assert result.metadata.state is ScanState.COMPLETED
-    assert len(result.findings) == 12
+    assert len(result.findings) == 19
     assert result.score is None
     assert result.errors == ()
-    assert len(client.budgets) == 2
-    assert client.budgets[0] is client.budgets[1]
+    assert len(client.budgets) == 3
+    assert client.budgets[0] is client.budgets[1] is client.budgets[2]

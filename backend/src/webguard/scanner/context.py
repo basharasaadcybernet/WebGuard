@@ -119,6 +119,14 @@ class ProbeObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class AuxiliaryObservation:
+    """A named, orchestrator-collected resource observation for one or more checks."""
+
+    key: str
+    probe: ProbeObservation
+
+
+@dataclass(frozen=True, slots=True)
 class ScanContext:
     """Immutable validated observations available to each registered check."""
 
@@ -132,8 +140,18 @@ class ScanContext:
     started_at: datetime
     observations_finished_at: datetime
     observed_https_downgrade: bool
+    auxiliary: tuple[AuxiliaryObservation, ...] = ()
     warnings: tuple[ScanNotice, ...] = ()
     errors: tuple[ScanNotice, ...] = ()
+
+    def auxiliary_probe(self, key: str) -> ProbeObservation | None:
+        """Return a named protected observation without exposing a network client."""
+        return next((item.probe for item in self.auxiliary if item.key == key), None)
+
+
+def redact_observed_url(base_url: str, raw_reference: str) -> str:
+    """Resolve an observed reference and pass it through the public URL redactor."""
+    return redact_url(urljoin(base_url, raw_reference))
 
 
 def _response_observation(response: SafeResponse) -> ResponseObservation:
@@ -199,6 +217,7 @@ def build_scan_context(
     budget: RequestBudget,
     started_at: datetime,
     observations_finished_at: datetime,
+    auxiliary: tuple[AuxiliaryObservation, ...] = (),
 ) -> ScanContext:
     """Convert boundary-owned responses into immutable scanner observations."""
     context_errors = tuple(
@@ -209,6 +228,13 @@ def build_scan_context(
             ("http_probe", http_probe),
         )
         if probe.failure is not None
+    ) + tuple(
+        ScanNotice(
+            code=f"auxiliary.{item.key}.{item.probe.failure.code}",
+            message=item.probe.failure.message,
+        )
+        for item in auxiliary
+        if item.probe.failure is not None
     )
     return ScanContext(
         target=target,
@@ -223,5 +249,6 @@ def build_scan_context(
         observed_https_downgrade=(
             landing.observed_https_downgrade or https_probe.observed_https_downgrade
         ),
+        auxiliary=auxiliary,
         errors=context_errors,
     )

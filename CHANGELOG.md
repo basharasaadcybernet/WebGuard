@@ -25,6 +25,16 @@ begin.
   expiration metadata for TLS checks.
 - Controlled rule tests covering positive, negative, malformed, unavailable, and not-applicable
   outcomes without authoritative live targets.
+- Phase 5B cookie Secure, HttpOnly, and SameSite checks with deterministic grouped evidence and no
+  cookie values.
+- RFC 9116-oriented security.txt collection through declarative auxiliary observations, the shared
+  request budget, and the protected redirect path.
+- Bounded static mixed-content detection for active and passive HTML references, with deduplicated
+  redacted URL evidence.
+- Separate informational Server and X-Powered-By disclosure rules with conservative version-detail
+  handling and no CVE matching.
+- Controlled Phase 5B rule and boundary tests for parsing, privacy, redirect SSRF protection,
+  budget exhaustion, oversized responses, ordering, failure isolation, and serialization.
 
 ### Fixed
 
@@ -44,3 +54,8 @@ begin.
 - Classify expired, hostname-mismatched, and untrusted TLS certificates at the protected boundary
   without disabling certificate verification or exposing raw TLS errors.
 - Redact redirect query values before Location observations enter `ScanContext`.
+- Keep security.txt Contact values and raw bodies out of public results, and never fetch resources
+  named inside the file.
+- Route metadata-declared auxiliary observations through `ScanNetworkService`; check modules still
+  cannot import networking or security-boundary code.
+- Redact and bound mixed-content evidence URLs and collapse duplicate insecure references.

@@ -4,20 +4,23 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1–5A:
+This repository currently contains milestones 1-5B:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters; and
 - a fail-closed outbound networking boundary with SSRF protections;
 - deterministic scanner orchestration with a shared request budget; and
-- twelve passive transport-security and HTTP security-header checks.
+- nineteen passive transport, header, cookie, content, and disclosure checks.
 
 The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
 expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
 Permissions-Policy, and combined CSP/X-Frame-Options clickjacking protection.
+Phase 5B adds grouped Secure/HttpOnly/SameSite cookie observations, an RFC 9116-oriented
+`security.txt` check, bounded static mixed-content detection, and separate Server and
+X-Powered-By disclosure observations.
 
-No scoring engine, report generator, CLI scan command, API, frontend, persistence, cookie checks,
-`security.txt`, mixed-content analysis, or server-disclosure checks are implemented yet.
+No scoring engine, grade calculation, report generator, CLI scan command, API, frontend, or
+persistence is implemented. Results remain unscored (`score=None`).
 
 ## Development setup
 
@@ -48,8 +51,9 @@ docker compose run --build --rm backend-checks
 
 All outbound HTTP access must use `webguard.security.SafeHttpClient`. Real checks receive only
 immutable observations; HTTPS and one-hop HTTP probes are collected centrally under the same
-per-scan request budget. See `SECURITY.md` before adding network behavior and `docs/CHECKS.md` for
-the exact Phase 5A rule semantics.
+per-scan request budget. Fixed auxiliary observations such as `/.well-known/security.txt` are
+declared by rule metadata and collected by the same orchestrator and protected client. See
+`SECURITY.md` before adding network behavior and `docs/CHECKS.md` for exact rule semantics.
 
 ## Product scope
 

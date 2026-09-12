@@ -97,6 +97,38 @@ A confirmed endpoint connection failure can support an HTTPS-availability findin
 other indeterminate network error cannot: it becomes an operational evaluation error so temporary
 uncertainty is not mislabeled as a security weakness.
 
+## Phase 5B passive-content and disclosure observations
+
+Rules may declare fixed auxiliary requests in metadata, but they still receive no networking
+object. `ScanEngine` turns the `security_txt` declaration into an HTTPS request for
+`/.well-known/security.txt` on the normalized target hostname. It follows redirects only through
+`SafeHttpClient`, revalidates every destination, and charges every hop to the same `RequestBudget`
+used by landing, HTTPS, and HTTP observations. A blocked redirect, exhausted budget, oversized
+response, or other protected-fetch failure becomes an operational check error, not a finding.
+
+The security.txt parser has a 64 KiB rule-level ceiling inside the global response limit. It checks
+only successful HTTPS `text/plain` UTF-8 content, Contact presence, and one future RFC 3339 Expires
+value. Contact values and referenced URLs are not copied into findings or fetched. This avoids
+turning a policy document into an unbounded crawler or an SSRF route.
+
+`Set-Cookie` is redacted before `ScanContext` construction. Checks can see only a bounded cookie
+name and the recognized `Secure`, `HttpOnly`, and `SameSite` flags; values, tokens, and session IDs
+are replaced with `[redacted]`. Results group names and counts by attribute instead of reproducing
+headers. Authorization data remains fully redacted.
+
+Mixed-content analysis uses the standard non-executing HTML parser on the already-bounded final
+HTTPS landing body. It does not start a browser, execute script, fetch subresources, or evaluate
+raw HTML. Only explicit `http://` attributes are considered. Evidence URLs pass through the same
+credential, query, and fragment redaction used by public hop data; duplicates are collapsed.
+
+Server and X-Powered-By checks consume only sanitized final-response header observations. They do
+not fingerprint, contact external services, or turn banner versions into CVE claims. Generic
+presence is informational; a concrete Server version is at most a LOW disclosure warning.
+
+Phase 5B uncovered no bypass of the protected network boundary. The auxiliary-fetch work did add
+regression coverage demonstrating that private redirect destinations, over-budget requests, and
+oversized security.txt responses fail without creating vulnerability findings.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule
