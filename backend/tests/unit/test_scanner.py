@@ -61,6 +61,11 @@ class FakeSafeClient:
             raise self.error
         return self.result
 
+    async def fetch_once(
+        self, raw_url: str, *, budget: RequestBudget | None = None
+    ) -> SafeFetchResult:
+        return await self.fetch(raw_url, budget=budget)
+
 
 @dataclass
 class FakeCheck:
@@ -160,13 +165,16 @@ async def test_scan_context_is_immutable_and_contains_safe_observations() -> Non
     )
 
     context = contexts[0]
-    assert context.request_budget.used == 1
+    assert context.request_budget.used == 2
     assert context.request_budget.maximum == 4
     assert context.landing_page.body.size > 0
     assert context.landing_page.body.text.startswith("<html>")
     assert context.landing_page.header_values("authorization") == ("[redacted]",)
     assert context.landing_page.header_values("set-cookie") == (
         "session=[redacted]; Secure; HttpOnly; SameSite=Lax",
+    )
+    assert context.landing_page.header_values("location") == (
+        "https://example.com/next?[redacted]",
     )
     with pytest.raises(FrozenInstanceError):
         context.observed_https_downgrade = True  # type: ignore[misc]
@@ -303,9 +311,10 @@ async def test_scan_network_service_reuses_one_budget() -> None:
     network = ScanNetworkService(client, budget)
     await network.fetch("https://example.com")
     await network.fetch("https://example.com/second")
-    assert client.budgets == [budget, budget]
-    assert budget.used == 2
-    assert budget.remaining == 1
+    await network.fetch_once("https://example.com/third")
+    assert client.budgets == [budget, budget, budget]
+    assert budget.used == 3
+    assert budget.remaining == 0
 
 
 @pytest.mark.asyncio

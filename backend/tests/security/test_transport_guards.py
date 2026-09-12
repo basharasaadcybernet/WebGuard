@@ -9,7 +9,12 @@ import pytest
 
 from webguard.domain.enums import HttpScheme
 from webguard.domain.models import NormalizedTarget
-from webguard.security.errors import BlockedAddressError
+from webguard.security.errors import (
+    BlockedAddressError,
+    TLSCertificateExpired,
+    TLSCertificateUntrusted,
+    TLSHostnameMismatch,
+)
 from webguard.security.transport import (
     HttpxPinnedTransport,
     PinnedDestination,
@@ -95,19 +100,21 @@ async def test_tls_stream_rejects_different_sni_hostname() -> None:
 @pytest.mark.asyncio
 @pytest.mark.security
 @pytest.mark.parametrize(
-    "reason",
+    ("reason", "expected"),
     [
-        "certificate has expired",
-        "hostname mismatch",
-        "self-signed certificate",
+        ("certificate has expired", TLSCertificateExpired),
+        ("hostname mismatch", TLSHostnameMismatch),
+        ("self-signed certificate", TLSCertificateUntrusted),
     ],
 )
-async def test_tls_certificate_verification_failures_close_the_stream(reason: str) -> None:
+async def test_tls_certificate_verification_failures_are_safely_classified(
+    reason: str, expected: type[Exception]
+) -> None:
     verification_error = ssl.SSLCertVerificationError(1, reason)
     writer = RecordingWriter(tls_error=verification_error)
     stream = _PinnedNetworkStream(SlowReader(), writer, "example.com")  # type: ignore[arg-type]
 
-    with pytest.raises(httpcore.ConnectError) as caught:
+    with pytest.raises(expected) as caught:
         await stream.start_tls(
             ssl.create_default_context(), server_hostname="example.com", timeout=1
         )

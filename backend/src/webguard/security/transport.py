@@ -10,6 +10,7 @@ import ssl
 import time
 from collections.abc import AsyncIterable, AsyncIterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 import httpcore
@@ -19,8 +20,13 @@ from webguard.domain.models import NormalizedTarget
 from webguard.security.address_policy import IPAddress, PublicAddressPolicy
 from webguard.security.config import NetworkLimits
 from webguard.security.errors import (
+    EndpointUnavailable,
     RequestTimedOut,
     ResponseTooLarge,
+    SecurityBoundaryError,
+    TLSCertificateExpired,
+    TLSCertificateUntrusted,
+    TLSHostnameMismatch,
     TransportError,
 )
 
@@ -38,12 +44,34 @@ def _create_tcp_socket(family: socket.AddressFamily) -> socket.socket:
     return socket.socket(family=family, type=socket.SOCK_STREAM)
 
 
+def _classify_certificate_error(error: ssl.SSLCertVerificationError) -> SecurityBoundaryError:
+    """Map OpenSSL verification failures to bounded scanner-safe categories."""
+    verify_code = getattr(error, "verify_code", None)
+    reason = str(getattr(error, "verify_message", error)).lower()
+    if verify_code == 10 or "expired" in reason:
+        return TLSCertificateExpired("TLS certificate has expired")
+    if verify_code == 62 or "hostname mismatch" in reason:
+        return TLSHostnameMismatch("TLS certificate hostname validation failed")
+    return TLSCertificateUntrusted("TLS certificate chain is not trusted")
+
+
 @dataclass(frozen=True, slots=True)
 class PinnedDestination:
     """A normalized target paired with the exact public IP to connect to."""
 
     target: NormalizedTarget
     ip_address: IPAddress
+
+
+@dataclass(frozen=True, slots=True)
+class TLSCertificateMetadata:
+    """Minimal certificate metadata safe for expiration evaluation."""
+
+    not_after: datetime
+
+    def __post_init__(self) -> None:
+        if self.not_after.tzinfo is None or self.not_after.utcoffset() is None:
+            raise ValueError("Certificate expiration time must be timezone-aware")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +83,7 @@ class TransportResponse:
     body: bytes = field(repr=False)
     elapsed_ms: int
     http_version: str
+    tls_certificate: TLSCertificateMetadata | None = None
 
     def header_values(self, name: str) -> tuple[str, ...]:
         lowered = name.lower()
@@ -127,6 +156,9 @@ class _PinnedNetworkStream(httpcore.AsyncNetworkStream):
         except TimeoutError as exc:
             await self.aclose()
             raise httpcore.ConnectTimeout from exc
+        except ssl.SSLCertVerificationError as exc:
+            await self.aclose()
+            raise _classify_certificate_error(exc) from exc
         except (OSError, ssl.SSLError) as exc:
             await self.aclose()
             raise httpcore.ConnectError from exc
@@ -345,10 +377,36 @@ class HttpxPinnedTransport:
                         body=b"".join(chunks),
                         elapsed_ms=elapsed_ms,
                         http_version=response.http_version,
+                        tls_certificate=_extract_tls_certificate(response),
                     )
         except (TimeoutError, httpx.TimeoutException, httpcore.TimeoutException) as exc:
             raise RequestTimedOut("Request exceeded a configured timeout") from exc
         except ResponseTooLarge:
             raise
+        except (httpx.ConnectError, httpcore.ConnectError) as exc:
+            raise EndpointUnavailable("Validated endpoint connection failed") from exc
         except (httpx.HTTPError, httpcore.NetworkError, httpcore.ProtocolError, OSError) as exc:
             raise TransportError("Pinned network request failed") from exc
+
+
+def _extract_tls_certificate(response: httpx.Response) -> TLSCertificateMetadata | None:
+    """Read only the peer certificate expiration time from the verified TLS stream."""
+    network_stream = response.extensions.get("network_stream")
+    get_extra_info = getattr(network_stream, "get_extra_info", None)
+    if get_extra_info is None:
+        return None
+    ssl_object = get_extra_info("ssl_object")
+    get_peer_certificate = getattr(ssl_object, "getpeercert", None)
+    if get_peer_certificate is None:
+        return None
+    certificate = get_peer_certificate()
+    if not isinstance(certificate, dict):
+        return None
+    not_after = certificate.get("notAfter")
+    if not isinstance(not_after, str):
+        return None
+    try:
+        timestamp = ssl.cert_time_to_seconds(not_after)
+        return TLSCertificateMetadata(not_after=datetime.fromtimestamp(timestamp, tz=UTC))
+    except (OverflowError, TypeError, ValueError):
+        return None

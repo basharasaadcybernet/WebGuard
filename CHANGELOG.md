@@ -20,6 +20,11 @@ begin.
 - Public operational error contracts and explicit `COMPLETED`, `PARTIAL`, and `FAILED` scan states.
 - Check failure isolation, shared per-scan request budgets, safe internal-to-public hop conversion,
   and architecture tests preventing networking imports in future check modules.
+- Phase 5A explicit registry of twelve real transport-security and HTTP security-header checks.
+- Protected one-hop HTTP probing for redirect assessment and minimal verified-certificate
+  expiration metadata for TLS checks.
+- Controlled rule tests covering positive, negative, malformed, unavailable, and not-applicable
+  outcomes without authoritative live targets.
 
 ### Fixed
 
@@ -36,3 +41,6 @@ begin.
   non-secret cookie flags needed by future rules.
 - Keep check exception details, response bodies, and sensitive target queries out of public scan
   serialization.
+- Classify expired, hostname-mismatched, and untrusted TLS certificates at the protected boundary
+  without disabling certificate verification or exposing raw TLS errors.
+- Redact redirect query values before Location observations enter `ScanContext`.

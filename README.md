@@ -4,14 +4,20 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1–3 only:
+This repository currently contains milestones 1–5A:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters; and
-- a fail-closed outbound networking boundary with SSRF protections.
+- a fail-closed outbound networking boundary with SSRF protections;
+- deterministic scanner orchestration with a shared request budget; and
+- twelve passive transport-security and HTTP security-header checks.
 
-No security rules, scoring engine, scanner orchestration, API, report generator, or user
-interface are implemented yet.
+The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
+expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
+Permissions-Policy, and combined CSP/X-Frame-Options clickjacking protection.
+
+No scoring engine, report generator, CLI scan command, API, frontend, persistence, cookie checks,
+`security.txt`, mixed-content analysis, or server-disclosure checks are implemented yet.
 
 ## Development setup
 
@@ -40,8 +46,10 @@ When Docker is available, the same checks can run in a clean Python 3.12 contain
 docker compose run --build --rm backend-checks
 ```
 
-All future outbound HTTP access must use `webguard.security.SafeHttpClient`. See
-`SECURITY.md` before adding any network behavior.
+All outbound HTTP access must use `webguard.security.SafeHttpClient`. Real checks receive only
+immutable observations; HTTPS and one-hop HTTP probes are collected centrally under the same
+per-scan request budget. See `SECURITY.md` before adding network behavior and `docs/CHECKS.md` for
+the exact Phase 5A rule semantics.
 
 ## Product scope
 

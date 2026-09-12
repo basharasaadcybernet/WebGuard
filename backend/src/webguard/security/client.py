@@ -106,21 +106,8 @@ class SafeHttpClient:
                 raise RedirectPolicyError("Redirect loop detected")
             seen.add(request_key)
 
-            await request_budget.consume()
-            resolved = await self._resolver.resolve(current.hostname, current.port)
-            public_addresses = self._address_policy.validate_all(resolved)
-            destination = PinnedDestination(target=current, ip_address=public_addresses[0])
-            response = await self._transport.request(destination, self._limits)
-            if len(response.body) > self._limits.max_response_bytes:
-                raise ResponseTooLarge("Response exceeded the configured size limit")
-
-            responses.append(
-                SafeResponse(
-                    target=current,
-                    destination_ip=destination.ip_address,
-                    response=response,
-                )
-            )
+            responses.append(await self._request_once(current, request_budget))
+            response = responses[-1].response
             if response.status_code not in _REDIRECT_STATUSES:
                 return SafeFetchResult(responses=tuple(responses))
 
@@ -139,3 +126,26 @@ class SafeHttpClient:
     def normalize(self, raw_url: str) -> NormalizedTarget:
         """Normalize a target through the same policy used immediately before fetching."""
         return self._url_policy.normalize(raw_url)
+
+    async def fetch_once(
+        self, raw_url: str, *, budget: RequestBudget | None = None
+    ) -> SafeFetchResult:
+        """Fetch exactly one validated response without following a redirect."""
+        request_budget = budget or RequestBudget(self._limits.max_requests)
+        target = self._url_policy.normalize(raw_url)
+        response = await self._request_once(target, request_budget)
+        return SafeFetchResult(responses=(response,))
+
+    async def _request_once(self, target: NormalizedTarget, budget: RequestBudget) -> SafeResponse:
+        await budget.consume()
+        resolved = await self._resolver.resolve(target.hostname, target.port)
+        public_addresses = self._address_policy.validate_all(resolved)
+        destination = PinnedDestination(target=target, ip_address=public_addresses[0])
+        response = await self._transport.request(destination, self._limits)
+        if len(response.body) > self._limits.max_response_bytes:
+            raise ResponseTooLarge("Response exceeded the configured size limit")
+        return SafeResponse(
+            target=target,
+            destination_ip=destination.ip_address,
+            response=response,
+        )

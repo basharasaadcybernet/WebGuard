@@ -34,6 +34,24 @@ async def test_fetch_resolves_validates_and_pins_public_destination() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.security
+async def test_fetch_once_does_not_follow_a_redirect_and_uses_shared_budget() -> None:
+    resolver = FakeResolver([addresses("8.8.8.8")])
+    transport = FakeTransport(
+        [response(301, headers=(("Location", "https://example.com/secure"),))]
+    )
+    budget = RequestBudget(2)
+    result = await SafeHttpClient(resolver=resolver, transport=transport).fetch_once(
+        "http://example.com/", budget=budget
+    )
+
+    assert len(result.responses) == 1
+    assert result.final.response.status_code == 301
+    assert resolver.calls == [("example.com", 80)]
+    assert budget.used == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.security
 async def test_direct_localhost_target_is_blocked_before_transport() -> None:
     resolver = FakeResolver([addresses("127.0.0.1")])
     transport = FakeTransport([])

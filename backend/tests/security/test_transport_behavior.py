@@ -15,10 +15,16 @@ import webguard.security.transport as transport_module
 from webguard.domain.enums import HttpScheme
 from webguard.domain.models import NormalizedTarget
 from webguard.security.config import NetworkLimits
-from webguard.security.errors import RequestTimedOut, ResponseTooLarge, TransportError
+from webguard.security.errors import (
+    EndpointUnavailable,
+    RequestTimedOut,
+    ResponseTooLarge,
+    TransportError,
+)
 from webguard.security.transport import (
     HttpxPinnedTransport,
     PinnedDestination,
+    _extract_tls_certificate,
     _PinnedHTTPTransport,
     _PinnedNetworkBackend,
     _verified_ssl_context,
@@ -176,7 +182,7 @@ async def test_connection_error_is_mapped_without_leaking_details(
         raise httpx.ConnectError("internal socket detail", request=request)
 
     install_mock_transport(monkeypatch, handler)
-    with pytest.raises(TransportError, match="Pinned network request failed") as caught:
+    with pytest.raises(EndpointUnavailable, match="endpoint connection failed") as caught:
         await HttpxPinnedTransport().request(destination(), NetworkLimits())
     assert "internal socket detail" not in str(caught.value)
 
@@ -217,6 +223,22 @@ def test_verified_tls_context_requires_certificate_and_hostname_validation() -> 
     context = _verified_ssl_context()
     assert context.verify_mode == ssl.CERT_REQUIRED
     assert context.check_hostname is True
+
+
+def test_verified_certificate_expiration_is_reduced_to_safe_metadata() -> None:
+    class Certificate:
+        def getpeercert(self) -> dict[str, str]:
+            return {"notAfter": "Jan 31 00:00:00 2027 GMT"}
+
+    class NetworkStream:
+        def get_extra_info(self, name: str) -> Certificate | None:
+            return Certificate() if name == "ssl_object" else None
+
+    response = httpx.Response(200, extensions={"network_stream": NetworkStream()})
+    certificate = _extract_tls_certificate(response)
+
+    assert certificate is not None
+    assert certificate.not_after.isoformat() == "2027-01-31T00:00:00+00:00"
 
 
 def test_tls_context_creation_fails_closed_if_verification_is_not_enabled(

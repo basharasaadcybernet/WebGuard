@@ -148,3 +148,76 @@ Three outcomes must not be confused:
 Security results must be reproducible. Stable ordering by configured priority and rule ID makes
 output, tests, diffs, debugging, and later scoring predictable. Phase 4 therefore runs checks
 sequentially and rejects duplicate rule IDs instead of relying on discovery order or concurrency.
+
+## HTTPS and HTTP
+
+HTTP carries web traffic without transport encryption. HTTPS is HTTP carried inside TLS, which
+protects traffic against ordinary network reading and modification and authenticates the server.
+WebGuard separately observes whether HTTPS works and whether an HTTP request is redirected to it.
+A redirect Location alone is not treated as proof that the HTTPS destination actually works.
+
+## What TLS certificates do
+
+A server certificate binds public-key material to names under rules enforced by certificate
+authorities and client trust stores. During a verified TLS handshake, the client checks the trust
+chain, the requested hostname, and the certificate validity period. Encryption without those
+identity checks would not reliably tell the client which server it reached.
+
+Certificate trust means the chain leads to an authority accepted by the scanner's system trust
+store. A self-signed or incomplete chain will normally fail that check. Hostname validation is a
+separate question: a trusted certificate for another domain must still be rejected. Expiration is
+also separate because certificates are valid only within a defined time window.
+
+WebGuard keeps TLS verification enabled. It classifies a verification failure as expired,
+hostname-mismatched, or untrusted and does not expose the raw error. For a successful connection it
+retains only the expiration time needed by the rule. Phase 5A warns when 30 days or fewer remain;
+that threshold is centralized in `RuleConfig`.
+
+## HSTS
+
+HTTP Strict Transport Security tells a browser to use HTTPS for future visits to a host. A positive
+`max-age` enables the policy; zero disables it. `includeSubDomains` can extend it to subdomains.
+Preload is optional and is not required for a WebGuard PASS. HSTS is evaluated only on HTTPS because
+browsers do not establish an HSTS policy from an insecure HTTP response.
+
+## Content Security Policy
+
+Content Security Policy lets a site restrict where browsers may load scripts, styles, frames, and
+other resources. It can reduce the impact of injection bugs, but a header's presence does not prove
+that XSS is impossible. Phase 5A checks only that an enforced CSP exists and contains a recognized,
+non-empty directive; it is deliberately not a full policy analyzer.
+
+## MIME sniffing and nosniff
+
+Browsers sometimes infer a resource type from bytes instead of trusting `Content-Type`; this is
+called MIME sniffing. `X-Content-Type-Options: nosniff` asks the browser to respect the declared
+type. WebGuard checks that exact value but does not verify the Content-Type of every site resource.
+
+## Referrer-Policy
+
+A browser may send the previous page's URL when navigating or loading another resource.
+Referrer-Policy controls how much of that URL is shared. Different applications can reasonably
+choose different policies, so WebGuard accepts several privacy-conscious values, treats clearly
+weak values separately, and records a missing explicit policy as informational.
+
+## Permissions-Policy
+
+Permissions-Policy controls access to browser capabilities such as geolocation or camera in a page
+and its frames. Whether a capability should be available depends on the application. Phase 5A
+therefore checks only presence and obvious syntax problems; it does not guess business intent.
+
+## Clickjacking, X-Frame-Options, and frame-ancestors
+
+Clickjacking places a target page inside a deceptive frame and tricks a user into interacting with
+it. `X-Frame-Options: DENY` blocks framing, while `SAMEORIGIN` allows the same origin to frame the
+page. CSP `frame-ancestors` is the more flexible modern control and can name permitted parents;
+`'none'` blocks all framing. WebGuard prefers `frame-ancestors` when both headers exist and does not
+require both mechanisms.
+
+## Missing hardening is not always a vulnerability
+
+Security headers are defense-in-depth controls whose importance depends on content and application
+behavior. A missing Permissions-Policy does not prove a dangerous browser feature is used, and a
+missing CSP does not prove an injection bug exists. Findings therefore distinguish confirmed
+misconfiguration, recommended hardening, informational observation, and inability to evaluate.
+Severity communicates the observed posture without claiming an exploit that WebGuard did not test.

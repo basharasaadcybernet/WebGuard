@@ -20,6 +20,7 @@ class CheckMetadata:
     title: str
     category: str
     order: int = 100
+    references: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not _RULE_ID.fullmatch(self.rule_id):

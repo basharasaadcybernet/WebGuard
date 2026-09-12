@@ -35,3 +35,19 @@ class ResponseTooLarge(SecurityBoundaryError):
 
 class TransportError(SecurityBoundaryError):
     """The pinned transport failed without exposing unsafe internals."""
+
+
+class EndpointUnavailable(SecurityBoundaryError):
+    """The validated destination could not establish a connection."""
+
+
+class TLSCertificateUntrusted(SecurityBoundaryError):
+    """TLS certificate chain validation did not establish trust."""
+
+
+class TLSHostnameMismatch(SecurityBoundaryError):
+    """TLS certificate identity did not match the validated hostname."""
+
+
+class TLSCertificateExpired(SecurityBoundaryError):
+    """TLS certificate validation reported an expired certificate."""

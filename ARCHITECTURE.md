@@ -9,6 +9,8 @@ The package uses a `src` layout under `backend/src/webguard`. The implemented la
    budgets, destination pinning, and bounded HTTP retrieval.
 3. `scanner`: immutable observations, the typed check protocol, an explicit deterministic
    registry, centralized per-scan network service, and failure-isolating orchestration.
+4. `checks`: twelve explicitly registered Phase 5A transport and header rules that inspect only
+   `ScanContext` observations.
 
 The security package is deliberately the only public home for outbound networking. Future
 scanner checks receive an immutable `ScanContext`; they do not receive a raw HTTP client or the
@@ -31,7 +33,7 @@ ScanContext  CheckRegistry
      |          |
  observations  sequential checks
           |
-ScanNetworkService -- one RequestBudget
+ScanNetworkService -- landing + HTTPS + one-hop HTTP, one RequestBudget
           |
     SafeHttpClient
   |       |       |
@@ -53,12 +55,22 @@ non-vulnerability `ScanError` records.
 Checks run sequentially by `(order, rule_id)`. A check may be inapplicable, return structured
 findings, raise an expected evaluation error, or crash. Check failures are isolated and produce a
 `PARTIAL` scan; target or protected-network failures produce `FAILED`; negative findings do not
-change an otherwise `COMPLETED` scan. Phase 4 deliberately calculates no score.
+change an otherwise `COMPLETED` scan. Phase 5A deliberately calculates no score.
+
+For transport checks, the orchestrator reuses successful landing-chain observations when possible.
+Otherwise it makes a direct HTTPS observation and a one-hop HTTP observation through
+`ScanNetworkService`. Probe URLs omit the submitted query, and every request consumes the same
+scan budget. The verified TLS adapter exposes only the certificate `not_after` timestamp and a
+bounded failure category: expired, hostname mismatch, or untrusted chain.
+
+The default registry is explicit: transport and TLS checks run first, followed by header checks.
+Header checks inspect the final landing response; HSTS applies only to HTTPS and CSP/clickjacking
+apply only to HTML-like content. No check imports the network or security layer.
 
 ## Deferred components
 
-Real rule checks, scoring, reports, REST endpoints, CLI scan commands, and the frontend are
-intentionally deferred to later milestones.
+Cookie, security.txt, mixed-content, and server-disclosure rules remain deferred, as do scoring,
+reports, REST endpoints, CLI scan commands, and the frontend.
 
 ## Current limitations
 
@@ -67,5 +79,5 @@ answer if the connection fails. It requests identity encoding and fails closed w
 compressed content anyway; bounded streaming decompression can be added later without weakening
 the size limit. Application-wide concurrency limits belong to the future orchestration/API layer.
 
-Phase 3.5 added controlled transport tests and opt-in public smoke tests. The normal suite remains
-fully deterministic and never requires external DNS or Internet access.
+Phase 5A uses controlled transport and rule fixtures as its source of truth. The normal suite
+remains fully deterministic and never requires external DNS or Internet access.

@@ -18,6 +18,10 @@ class SafeFetchClient(Protocol):
         self, raw_url: str, *, budget: RequestBudget | None = None
     ) -> SafeFetchResult: ...
 
+    async def fetch_once(
+        self, raw_url: str, *, budget: RequestBudget | None = None
+    ) -> SafeFetchResult: ...
+
 
 class ScanNetworkService:
     """Own one request budget and route every scan fetch through the safe client."""
@@ -31,3 +35,6 @@ class ScanNetworkService:
 
     async def fetch(self, raw_url: str) -> SafeFetchResult:
         return await self._client.fetch(raw_url, budget=self.budget)
+
+    async def fetch_once(self, raw_url: str) -> SafeFetchResult:
+        return await self._client.fetch_once(raw_url, budget=self.budget)

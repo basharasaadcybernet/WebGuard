@@ -71,6 +71,32 @@ Operational failures remain separate from vulnerabilities. A target-policy or ne
 a failed scan, while an isolated check failure is a partial scan. A negative security finding is a
 valid check result and does not become an operational error.
 
+## Phase 5A transport and header observations
+
+The orchestrator collects the landing page, a verified HTTPS observation, and a one-hop HTTP
+redirect observation. It reuses landing responses where possible, removes the submitted query from
+auxiliary probe URLs, and charges every request and redirect to one per-scan budget. A one-hop probe
+cannot silently follow an HTTP redirect outside the normal validation path.
+
+TLS verification remains enabled. Successful TLS proves that the system trust store, certificate
+validity checks, and hostname validation accepted that connection. Verification failures are
+reduced to safe categories for expired, hostname-mismatched, or untrusted certificates. Only the
+verified peer certificate expiration time is retained; subjects, serials, chains, socket state, and
+raw exception text are not exposed.
+
+Response `Location` values are converted to absolute redacted URLs before checks receive them.
+Authorization values and cookie values remain redacted, response bodies remain internal, and all
+finding evidence is bounded by public model validation.
+
+Phase 5A findings describe observed posture, not exploitability. Missing HSTS, CSP,
+X-Content-Type-Options, Referrer-Policy, or Permissions-Policy is worded as absent hardening unless
+the rule confirms a stronger misconfiguration such as `max-age=0`. No Phase 5A rule uses CRITICAL
+severity and no score is calculated.
+
+A confirmed endpoint connection failure can support an HTTPS-availability finding. A timeout or
+other indeterminate network error cannot: it becomes an operational evaluation error so temporary
+uncertainty is not mislabeled as a security weakness.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule
