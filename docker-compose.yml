@@ -1,0 +1,7 @@
+services:
+  backend-checks:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: >-
+      sh -c "python -m pytest && ruff check . && mypy"
