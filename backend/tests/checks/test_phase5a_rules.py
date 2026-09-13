@@ -469,7 +469,8 @@ async def test_default_engine_runs_all_real_checks_with_one_shared_budget() -> N
     )
     assert result.metadata.state is ScanState.COMPLETED
     assert len(result.findings) == 19
-    assert result.score is None
+    assert result.score is not None
+    assert result.score.score == 100
     assert result.errors == ()
     assert len(client.budgets) == 3
     assert client.budgets[0] is client.budgets[1] is client.budgets[2]

@@ -183,6 +183,7 @@ def test_no_cookies_is_informational_not_applicable_without_credit() -> None:
         for rule in (CookieSecureCheck(), CookieHttpOnlyCheck(), CookieSameSiteCheck())
     ]
     assert all(item.status is FindingStatus.INFO for item in results)
+    assert all(item.evaluation_state == "NOT_APPLICABLE" for item in results)
     assert all("no security credit" in item.description.lower() for item in results)
 
 
@@ -212,6 +213,7 @@ def test_cookie_http_only_is_conservative(cookie: str, expected: FindingStatus) 
     assert result.status is expected
     if expected is FindingStatus.INFO:
         assert "intentionally" in result.description
+        assert result.evaluation_state == "APPLICABLE"
 
 
 @pytest.mark.parametrize("same_site", ["Strict", "Lax", "None"])
@@ -512,9 +514,10 @@ async def test_default_engine_collects_security_txt_with_shared_budget_and_seria
     assert result.metadata.state is ScanState.COMPLETED
     assert len(result.findings) == 19
     assert result.errors == ()
-    assert result.score is None
+    assert result.score is not None
+    assert result.score.score == 100
     assert len(client.budgets) == 3
     assert client.budgets[0] is client.budgets[1] is client.budgets[2]
     serialized = result.model_dump_json()
     assert "security@example.com" not in serialized
-    assert "score\":null" in serialized
+    assert '"score":100' in serialized

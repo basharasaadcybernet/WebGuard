@@ -30,6 +30,7 @@ def engine(
         registry=CheckRegistry((SecurityTxtCheck(),)),
         client=client,
         limits=configured_limits,
+        scorer=None,
     )
 
 

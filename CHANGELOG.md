@@ -35,6 +35,13 @@ begin.
   handling and no CVE matching.
 - Controlled Phase 5B rule and boundary tests for parsing, privacy, redirect SSRF protection,
   budget exhaustion, oversized responses, ordering, failure isolation, and serialization.
+- Phase 6 scoring ruleset `1.0` with versioned TOML category/rule weights, status and
+  severity-specific credits, grade bands, a 70% coverage threshold, essential transport evidence,
+  and three explicit transport caps.
+- Immutable per-rule contributions, category normalization, exclusions, withholding reasons, raw
+  and final scores, coverage, grades, deductions, and applied-cap contracts.
+- Named excellent, average, weak, transport-broken, and low-coverage regression profiles plus
+  fail-closed configuration, determinism, grade-boundary, and serialization tests.
 
 ### Fixed
 
@@ -59,3 +66,9 @@ begin.
 - Route metadata-declared auxiliary observations through `ScanNetworkService`; check modules still
   cannot import networking or security-boundary code.
 - Redact and bound mixed-content evidence URLs and collapse duplicate insecure references.
+- Mark no-cookie observations explicitly NOT_APPLICABLE so scoring cannot award artificial cookie
+  points, while keeping missing HttpOnly an applicable informational observation.
+- Keep finding evidence out of scoring contributions so the scoring layer cannot duplicate secret
+  material from evidence fields.
+- Replace the permanently zero finding score placeholder with authoritative versioned
+  `RuleContribution` records.

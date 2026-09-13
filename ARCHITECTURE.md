@@ -11,6 +11,8 @@ The package uses a `src` layout under `backend/src/webguard`. The implemented la
    registry, centralized per-scan network service, and failure-isolating orchestration.
 4. `checks`: nineteen explicitly registered Phase 5B transport, header, cookie, content, and
    hygiene rules that inspect only `ScanContext` observations.
+5. `scoring`: versioned TOML policy loading, fail-closed registry/config validation, deterministic
+   Decimal calculations, and transparent score contribution models.
 
 The security package is deliberately the only public home for outbound networking. Future
 scanner checks receive an immutable `ScanContext`; they do not receive a raw HTTP client or the
@@ -28,10 +30,10 @@ accidental boundary bypass into a normal test failure.
 future CLI / API / reports
           |
       ScanEngine
-       /      \
-ScanContext  CheckRegistry
-     |          |
- observations  metadata declarations + sequential checks
+       /       |       \
+ScanContext  CheckRegistry  ScoringEngine -- weights.toml v1.0
+     |          |               |
+ observations  sequential checks  ScoreBreakdown
           |
 ScanNetworkService -- landing + HTTPS + one-hop HTTP + security.txt
           |                 one shared RequestBudget
@@ -56,7 +58,7 @@ non-vulnerability `ScanError` records.
 Checks run sequentially by `(order, rule_id)`. A check may be inapplicable, return structured
 findings, raise an expected evaluation error, or crash. Check failures are isolated and produce a
 `PARTIAL` scan; target or protected-network failures produce `FAILED`; negative findings do not
-change an otherwise `COMPLETED` scan. Phase 5B deliberately calculates no score.
+change an otherwise `COMPLETED` scan.
 
 For transport checks, the orchestrator reuses successful landing-chain observations when possible.
 Otherwise it makes a direct HTTPS observation and a one-hop HTTP observation through
@@ -78,10 +80,24 @@ and routes `fetch` or `fetch_once` through `ScanNetworkService`. The resulting n
 transport validation, and every hop consumes the same scan budget. A rule sees a success or a safe
 failure category, never a client, resolver, transport, or arbitrary-URL fetch primitive.
 
+After checks finish, `ScoringEngine` reconciles the explicit registry with findings and rule-level
+errors. Missing outcomes and findings marked `NOT_APPLICABLE` become exclusions. Rule errors stay
+applicable but unevaluated, reducing coverage without earning points or creating deductions. The
+engine calculates rule contributions, category normalization, overall coverage, withholding,
+rounding, grades, and the three configured transport caps without reading clocks, networks, or
+mutable global state.
+
+`weights.toml` is loaded and validated when the default `ScanEngine` is constructed. Configuration
+must cover the real registry exactly; category weights must total 100; rule weights must reconcile
+to categories; credits, grades, essential rules, and cap triggers must be valid. Invalid policy
+fails startup rather than silently changing output. Public `ScoreBreakdown` retains raw and final
+scores, category/rule math, deductions, exclusions and reasons, scoring version, coverage,
+withholding reasons, and an applied cap. It never copies finding evidence.
+
 ## Deferred components
 
-Scoring, grades, reports, REST endpoints, CLI scan commands, persistence, and the frontend remain
-deferred. Active exploitation, fuzzing, enumeration, and port scanning are outside product scope.
+Reports, REST endpoints, CLI scan commands, persistence, and the frontend remain deferred. Active
+exploitation, fuzzing, enumeration, and port scanning are outside product scope.
 
 ## Current limitations
 
@@ -90,5 +106,5 @@ answer if the connection fails. It requests identity encoding and fails closed w
 compressed content anyway; bounded streaming decompression can be added later without weakening
 the size limit. Application-wide concurrency limits belong to the future orchestration/API layer.
 
-Phase 5B uses controlled transport and rule fixtures as its source of truth. The normal suite
-remains fully deterministic and never requires external DNS or Internet access.
+Phase 6 uses controlled transport, rule, and named scoring fixtures as its source of truth. The
+normal suite remains fully deterministic and never requires external DNS or Internet access.

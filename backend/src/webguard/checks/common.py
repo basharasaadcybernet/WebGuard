@@ -1,5 +1,7 @@
 """Small helpers for consistent, bounded real findings."""
 
+from typing import Literal
+
 from pydantic import AnyHttpUrl
 
 from webguard.domain.enums import FindingStatus, Severity
@@ -16,6 +18,7 @@ def finding_result(
     source_url: str,
     recommendation: str,
     severity: Severity | None = None,
+    evaluation_state: Literal["APPLICABLE", "NOT_APPLICABLE"] = "APPLICABLE",
 ) -> CheckResult:
     """Build one consistent finding from already-sanitized observations."""
     bounded_evidence = evidence if len(evidence) <= 1024 else f"{evidence[:1023]}…"
@@ -26,6 +29,7 @@ def finding_result(
                 title=metadata.title,
                 category=metadata.category,
                 status=status,
+                evaluation_state=evaluation_state,
                 severity=severity,
                 description=description,
                 evidence=(

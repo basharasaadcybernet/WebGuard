@@ -31,6 +31,9 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["backend/src/webguard"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"backend/src/webguard/scoring/weights.toml" = "webguard/scoring/weights.toml"
+
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -ra -m 'not live'"
 asyncio_mode = "auto"

@@ -296,3 +296,64 @@ WebGuard does not match banner versions to CVEs. Reliable vulnerability matching
 accurate product identity, build and vendor-patch knowledge, configuration context, and a current
 vulnerability database. A header cannot provide that proof. Phase 5B records only what the server
 explicitly returned and never claims that a named version is exploitable.
+
+## Why security scoring is difficult
+
+A single number can make unlike observations look more precise than they are. HTTPS availability,
+a missing optional header, an expired disclosure policy, and a server banner do not carry the same
+meaning. A score also becomes misleading when half the checks could not run. WebGuard therefore
+treats the number as a summary of its own limited passive controls, not a measurement of every way
+a website could be attacked.
+
+## Severity is not scoring weight
+
+Severity describes the security relevance of one observed condition. Weight describes how much a
+rule contributes to WebGuard's particular posture model. They are related but not identical. CSP
+has more score weight than Permissions-Policy because the tested control has broader defensive
+importance in this model; that does not mean every missing CSP is an exploitable vulnerability.
+
+Missing headers are not equal for the same reason. HSTS, CSP, `nosniff`, referrer controls,
+browser-feature policy, and framing restrictions defend different risks and have different
+confidence limits. Phase 6 stores each rule's weight and warning credit in one versioned file so
+the distinction is reviewable instead of hidden in code.
+
+## Why NOT_APPLICABLE cannot mean PASS
+
+If a site sets no cookies, WebGuard cannot evaluate Secure, HttpOnly, or SameSite behavior. Giving
+those rules PASS would award 15 free points for controls that were never exercised. Subtracting the
+points would also be unfair. NOT_APPLICABLE removes those rules from both earned points and the
+denominator, while the breakdown records exactly what was excluded.
+
+## Why errors reduce confidence
+
+An ERROR means WebGuard tried to evaluate an applicable rule but lacked reliable evidence. It is
+not a security failure, yet it cannot earn credit. Errors are excluded from score arithmetic and
+remain in the applicable coverage denominator. The resulting lower coverage tells a reader that
+the visible score rests on less evidence. Below 70% coverage, WebGuard withholds the number and
+grade entirely. Essential transport-rule errors also cause withholding even if total coverage is
+otherwise high.
+
+## What coverage means
+
+Coverage is evaluated applicable rule weight divided by all applicable rule weight. It is reported
+overall and per category. A score of 95 at 100% coverage is better supported by WebGuard's checks
+than a score of 95 at 75% coverage. Neither one proves the site is secure: untested application
+logic, authorization, dependencies, infrastructure, and active attack paths remain outside this
+passive ruleset.
+
+## How deterministic scoring works
+
+Scoring ruleset `1.0` loads category weights, rule weights, status credits, grade thresholds,
+minimum coverage, essential rules, and transport caps from `weights.toml`. PASS earns full credit,
+FAIL earns none, and each rule defines INFO and WARNING credit. Mixed-content warnings can use a
+configured severity-specific fraction without adding policy conditionals to the engine.
+
+The engine uses Decimal arithmetic, normalizes each category over evaluated rules, combines active
+category weights, and rounds half-up to a public integer. Identical findings, errors, applicability,
+and configuration always produce the same breakdown. Per-rule contributions show available,
+earned, and deducted points plus reasons; exclusions show why a rule did not enter the score.
+
+Finally, three visible caps prevent a failed HTTPS availability, certificate-trust, or hostname
+control from coexisting with a passing grade. The raw score is retained, the final score is capped
+at 59/F only when necessary, and the triggering reason is public. This is a small explicit safety
+rule, not a hidden second scoring system.

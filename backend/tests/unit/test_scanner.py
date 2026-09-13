@@ -154,6 +154,7 @@ def engine(*checks: FakeCheck, client: FakeSafeClient | None = None) -> ScanEngi
         client=client or FakeSafeClient(),
         limits=NetworkLimits(max_requests=4),
         clock=StepClock(),
+        scorer=None,
     )
 
 

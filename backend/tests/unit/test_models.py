@@ -120,16 +120,26 @@ def test_category_and_score_relationships_are_validated() -> None:
         category="Transport",
         configured_weight=Decimal("30"),
         applicable_points=Decimal("20"),
+        evaluated_points=Decimal("15"),
+        available_points=Decimal("15"),
         earned_points=Decimal("15"),
-        coverage=Decimal("0.667"),
+        deductions=Decimal("0"),
+        normalized_score=Decimal("1"),
+        earned_normalized_contribution=Decimal("30"),
+        coverage=Decimal("0.75"),
     )
     score = ScoreBreakdown(
         score=None,
         grade=None,
+        scoring_version="test",
         applicable_points=Decimal("20"),
+        evaluated_points=Decimal("15"),
+        available_points=Decimal("15"),
         earned_points=Decimal("15"),
-        coverage=Decimal("0.2"),
+        deductions=Decimal("0"),
+        coverage=Decimal("0.75"),
         categories=(category,),
+        withholding_reasons=("Synthetic incomplete coverage.",),
         explanation="Score withheld because coverage is incomplete.",
     )
     assert score.score is None
@@ -139,7 +149,12 @@ def test_category_and_score_relationships_are_validated() -> None:
             category="Transport",
             configured_weight=Decimal("30"),
             applicable_points=Decimal("20"),
+            evaluated_points=Decimal("15"),
+            available_points=Decimal("15"),
             earned_points=Decimal("21"),
+            deductions=Decimal("0"),
+            normalized_score=Decimal("1"),
+            earned_normalized_contribution=Decimal("30"),
             coverage=Decimal("1"),
         )
 

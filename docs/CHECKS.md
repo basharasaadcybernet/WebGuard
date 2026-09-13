@@ -219,5 +219,7 @@ with affected/total counts. This avoids one finding per cookie while retaining a
 - **Limitations:** Does not infer technology, verify accuracy, or perform version-to-CVE matching.
 - **References:** [OWASP framework fingerprinting](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/08-Fingerprint_Web_Application_Framework).
 
-No rule calculates points in Phase 5B. `ScanResult.score` remains `None` until Phase 6 defines
-weights, applicability, coverage, and grade semantics for this complete passive set.
+Phase 6 assigns every stable rule a configuration-driven weight and status credit. Check logic
+still contains no scoring constants. Explicit NOT_APPLICABLE cookie outcomes, omitted findings for
+other inapplicable rules, and operational errors are excluded according to
+[the scoring model](SCORING.md); they are never treated as passing findings.

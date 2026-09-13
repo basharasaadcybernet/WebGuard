@@ -13,6 +13,17 @@ class FindingStatus(StrEnum):
     ERROR = "ERROR"
 
 
+class RuleEvaluationState(StrEnum):
+    """Scoring state for an evaluated, failed, or inapplicable rule."""
+
+    PASS = "PASS"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    FAIL = "FAIL"
+    ERROR = "ERROR"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
 class Severity(StrEnum):
     """Security relevance of a non-pass finding."""
 

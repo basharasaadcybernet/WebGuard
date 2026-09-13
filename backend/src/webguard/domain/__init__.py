@@ -4,16 +4,20 @@ from webguard.domain.enums import (
     FindingStatus,
     Grade,
     HttpScheme,
+    RuleEvaluationState,
     ScanErrorKind,
     ScanState,
     Severity,
 )
 from webguard.domain.models import (
+    AppliedScoreCap,
     CategoryScore,
     Evidence,
     FetchHop,
     Finding,
     NormalizedTarget,
+    RuleContribution,
+    RuleExclusion,
     ScanError,
     ScanMetadata,
     ScanRequest,
@@ -22,6 +26,7 @@ from webguard.domain.models import (
 )
 
 __all__ = [
+    "AppliedScoreCap",
     "CategoryScore",
     "Evidence",
     "FetchHop",
@@ -30,6 +35,9 @@ __all__ = [
     "Grade",
     "HttpScheme",
     "NormalizedTarget",
+    "RuleContribution",
+    "RuleEvaluationState",
+    "RuleExclusion",
     "ScanError",
     "ScanErrorKind",
     "ScanMetadata",

@@ -24,6 +24,7 @@ from webguard.domain.enums import (
     FindingStatus,
     Grade,
     HttpScheme,
+    RuleEvaluationState,
     ScanErrorKind,
     ScanState,
     Severity,
@@ -35,6 +36,7 @@ _RULE_ID = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
 ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200, strip_whitespace=True)]
 LongText = Annotated[str, StringConstraints(min_length=1, max_length=4000, strip_whitespace=True)]
 Points = Annotated[Decimal, Field(ge=0, le=1000, max_digits=7, decimal_places=3)]
+Fraction = Annotated[Decimal, Field(ge=0, le=1, max_digits=4, decimal_places=3)]
 
 
 def _validate_redacted_url(value: str) -> str:
@@ -150,12 +152,12 @@ class Finding(ContractModel):
     title: ShortText
     category: ShortText
     status: FindingStatus
+    evaluation_state: Literal["APPLICABLE", "NOT_APPLICABLE"] = "APPLICABLE"
     severity: Severity | None = None
     description: LongText
     evidence: tuple[Evidence, ...] = ()
     recommendation: LongText | None = None
     references: tuple[AnyHttpUrl, ...] = ()
-    score_impact: Points = Decimal("0")
 
     @field_validator("id")
     @classmethod
@@ -170,47 +172,163 @@ class Finding(ContractModel):
             raise ValueError("PASS and ERROR findings do not carry a security severity")
         if self.status in {FindingStatus.WARNING, FindingStatus.FAIL} and self.severity is None:
             raise ValueError("WARNING and FAIL findings require a severity")
+        if self.evaluation_state == "NOT_APPLICABLE" and self.status is not FindingStatus.INFO:
+            raise ValueError("NOT_APPLICABLE findings must use informational status")
         return self
 
 
 class CategoryScore(ContractModel):
-    """Transparent points and coverage for one future scoring category."""
+    """Transparent points, normalization, and coverage for one scoring category."""
 
     category: ShortText
     configured_weight: Points
     applicable_points: Points
+    evaluated_points: Points
+    available_points: Points
     earned_points: Points
-    coverage: Annotated[Decimal, Field(ge=0, le=1, max_digits=4, decimal_places=3)]
+    deductions: Points
+    normalized_score: Fraction | None = None
+    earned_normalized_contribution: Points
+    coverage: Fraction | None = None
 
     @model_validator(mode="after")
     def validate_point_relationships(self) -> CategoryScore:
         if self.applicable_points > self.configured_weight:
             raise ValueError("Applicable points cannot exceed configured weight")
-        if self.earned_points > self.applicable_points:
-            raise ValueError("Earned points cannot exceed applicable points")
+        if self.evaluated_points > self.applicable_points:
+            raise ValueError("Evaluated points cannot exceed applicable points")
+        if self.available_points != self.evaluated_points:
+            raise ValueError("Available points must equal evaluated points")
+        if self.earned_points > self.evaluated_points:
+            raise ValueError("Earned points cannot exceed evaluated points")
+        if self.deductions != self.evaluated_points - self.earned_points:
+            raise ValueError("Category deductions must equal available minus earned points")
+        if self.earned_normalized_contribution > self.configured_weight:
+            raise ValueError("Normalized contribution cannot exceed configured category weight")
+        if (self.coverage is None) != (self.applicable_points == 0):
+            raise ValueError("Category coverage is absent only when the category is not applicable")
+        if (self.normalized_score is None) != (self.evaluated_points == 0):
+            raise ValueError("Category normalized score requires evaluated points")
         return self
 
 
-class ScoreBreakdown(ContractModel):
-    """Future scoring result; no scoring algorithm is implemented in this milestone."""
+class RuleContribution(ContractModel):
+    """One deterministic rule's transparent scoring contribution or exclusion."""
 
+    rule_id: Annotated[
+        str,
+        StringConstraints(
+            min_length=3,
+            max_length=100,
+            pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+        ),
+    ]
+    category: ShortText
+    state: RuleEvaluationState
+    configured_points: Points
+    available_points: Points
+    earned_points: Points
+    deduction: Points
+    credit_fraction: Fraction | None = None
+    reason: LongText
+    exclusion_reason: LongText | None = None
+
+    @model_validator(mode="after")
+    def validate_contribution(self) -> RuleContribution:
+        excluded = self.state in {
+            RuleEvaluationState.ERROR,
+            RuleEvaluationState.NOT_APPLICABLE,
+        }
+        if excluded:
+            if any(
+                value != 0
+                for value in (self.available_points, self.earned_points, self.deduction)
+            ):
+                raise ValueError("Excluded rules cannot contribute points or deductions")
+            if self.credit_fraction is not None or self.exclusion_reason is None:
+                raise ValueError("Excluded rules require only an exclusion reason")
+        else:
+            if self.available_points != self.configured_points:
+                raise ValueError("Evaluated rules make all configured points available")
+            if self.earned_points + self.deduction != self.available_points:
+                raise ValueError("Rule deduction must reconcile available and earned points")
+            if self.credit_fraction is None or self.exclusion_reason is not None:
+                raise ValueError("Evaluated rules require credit and cannot have an exclusion")
+        return self
+
+
+class RuleExclusion(ContractModel):
+    """Explicit reason that one configured rule did not enter the score denominator."""
+
+    rule_id: Annotated[
+        str,
+        StringConstraints(
+            min_length=3,
+            max_length=100,
+            pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+        ),
+    ]
+    state: Literal[RuleEvaluationState.ERROR, RuleEvaluationState.NOT_APPLICABLE]
+    reason: LongText
+
+
+class AppliedScoreCap(ContractModel):
+    """One configured safety cap that changed the published score."""
+
+    rule_id: Annotated[
+        str,
+        StringConstraints(
+            min_length=3,
+            max_length=100,
+            pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
+        ),
+    ]
+    trigger_status: FindingStatus
+    maximum_score: Annotated[int, Field(ge=0, le=100)]
+    reason: LongText
+
+
+class ScoreBreakdown(ContractModel):
+    """Transparent, coverage-aware result of one versioned scoring calculation."""
+
+    raw_score: Points | None = None
     score: Annotated[int, Field(ge=0, le=100)] | None = None
     grade: Grade | None = None
+    scoring_version: ShortText
     configured_points: Points = Decimal("100")
     applicable_points: Points
+    evaluated_points: Points
+    available_points: Points
     earned_points: Points
-    coverage: Annotated[Decimal, Field(ge=0, le=1, max_digits=4, decimal_places=3)]
+    deductions: Points
+    coverage: Fraction
     categories: tuple[CategoryScore, ...] = ()
+    rule_contributions: tuple[RuleContribution, ...] = ()
+    exclusions: tuple[RuleExclusion, ...] = ()
+    cap: AppliedScoreCap | None = None
+    withholding_reasons: tuple[ShortText, ...] = ()
     explanation: Annotated[str, StringConstraints(min_length=1, max_length=4000)]
 
     @model_validator(mode="after")
     def validate_totals(self) -> ScoreBreakdown:
-        if (self.score is None) != (self.grade is None):
-            raise ValueError("Score and grade must either both be present or both be absent")
+        if len({self.raw_score is None, self.score is None, self.grade is None}) != 1:
+            raise ValueError("Raw score, final score, and grade must be present together")
         if self.applicable_points > self.configured_points:
             raise ValueError("Applicable points cannot exceed configured points")
-        if self.earned_points > self.applicable_points:
-            raise ValueError("Earned points cannot exceed applicable points")
+        if self.evaluated_points > self.applicable_points:
+            raise ValueError("Evaluated points cannot exceed applicable points")
+        if self.available_points != self.evaluated_points:
+            raise ValueError("Available points must equal evaluated points")
+        if self.earned_points > self.evaluated_points:
+            raise ValueError("Earned points cannot exceed evaluated points")
+        if self.deductions != self.evaluated_points - self.earned_points:
+            raise ValueError("Deductions must equal available minus earned points")
+        if (self.score is None) != bool(self.withholding_reasons):
+            raise ValueError("Withheld scores require explicit withholding reasons")
+        if self.score is None and self.cap is not None:
+            raise ValueError("A withheld score cannot have an applied cap")
+        if self.cap is not None and self.score is not None and self.score > self.cap.maximum_score:
+            raise ValueError("Final score cannot exceed its applied cap")
         return self
 
 

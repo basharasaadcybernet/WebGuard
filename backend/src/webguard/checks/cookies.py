@@ -82,6 +82,7 @@ class CookieSecureCheck:
                 self.metadata,
                 status=FindingStatus.INFO,
                 severity=Severity.INFO,
+                evaluation_state="NOT_APPLICABLE",
                 description=(
                     "No Set-Cookie fields were observed in the validated landing chain, so this "
                     "attribute check was not applicable and awards no security credit."
@@ -96,6 +97,7 @@ class CookieSecureCheck:
                 self.metadata,
                 status=FindingStatus.INFO,
                 severity=Severity.INFO,
+                evaluation_state="NOT_APPLICABLE",
                 description="No cookie was set by an HTTPS response, so Secure was not assessed.",
                 evidence=f"Observed cookies: {len(cookies)}; cookies set over HTTPS: 0.",
                 source_url=source,
@@ -152,6 +154,7 @@ class CookieHttpOnlyCheck:
                 self.metadata,
                 status=FindingStatus.INFO,
                 severity=Severity.INFO,
+                evaluation_state="NOT_APPLICABLE",
                 description=(
                     "No cookies were observed, so HttpOnly was not applicable and awards no "
                     "security credit."
@@ -205,6 +208,7 @@ class CookieSameSiteCheck:
                 self.metadata,
                 status=FindingStatus.INFO,
                 severity=Severity.INFO,
+                evaluation_state="NOT_APPLICABLE",
                 description=(
                     "No cookies were observed, so SameSite was not applicable and awards no "
                     "security credit."

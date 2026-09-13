@@ -1,0 +1,185 @@
+scoring_version = "1.0"
+minimum_coverage = "0.700"
+essential_error_rules = [
+  "transport.https_available",
+  "transport.tls_validity",
+  "transport.tls_hostname",
+]
+
+[[categories]]
+id = "transport"
+name = "Transport Security"
+weight = "30"
+
+[[categories]]
+id = "headers"
+name = "Security Headers"
+weight = "35"
+
+[[categories]]
+id = "cookies"
+name = "Cookie Security"
+weight = "15"
+
+[[categories]]
+id = "content"
+name = "Content Protection"
+weight = "10"
+
+[[categories]]
+id = "hygiene"
+name = "Information Disclosure / Hygiene"
+weight = "10"
+
+[[grades]]
+grade = "A"
+minimum_score = 90
+
+[[grades]]
+grade = "B"
+minimum_score = 80
+
+[[grades]]
+grade = "C"
+minimum_score = 70
+
+[[grades]]
+grade = "D"
+minimum_score = 60
+
+[[grades]]
+grade = "F"
+minimum_score = 0
+
+[[rules]]
+id = "transport.https_available"
+category = "transport"
+weight = "10"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "transport.http_redirect"
+category = "transport"
+weight = "4"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "transport.tls_validity"
+category = "transport"
+weight = "6"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "transport.tls_hostname"
+category = "transport"
+weight = "4"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "transport.tls_expiry"
+category = "transport"
+weight = "3"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "transport.https_downgrade"
+category = "transport"
+weight = "3"
+credits = { PASS = "1", INFO = "1", WARNING = "0.25", FAIL = "0" }
+
+[[rules]]
+id = "headers.strict_transport_security"
+category = "headers"
+weight = "7"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "headers.content_security_policy"
+category = "headers"
+weight = "10"
+credits = { PASS = "1", INFO = "1", WARNING = "0.25", FAIL = "0" }
+
+[[rules]]
+id = "headers.x_content_type_options"
+category = "headers"
+weight = "5"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "headers.referrer_policy"
+category = "headers"
+weight = "4"
+credits = { PASS = "1", INFO = "0.75", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "headers.permissions_policy"
+category = "headers"
+weight = "2"
+credits = { PASS = "1", INFO = "0.75", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "headers.clickjacking_protection"
+category = "headers"
+weight = "7"
+credits = { PASS = "1", INFO = "0.75", WARNING = "0.25", FAIL = "0" }
+
+[[rules]]
+id = "cookies.secure"
+category = "cookies"
+weight = "7"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "cookies.http_only"
+category = "cookies"
+weight = "3"
+credits = { PASS = "1", INFO = "0.75", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "cookies.same_site"
+category = "cookies"
+weight = "5"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "content.mixed_content"
+category = "content"
+weight = "10"
+credits = { PASS = "1", INFO = "1", WARNING = "0.25", FAIL = "0" }
+warning_severity_credits = { LOW = "0.5", MEDIUM = "0.25", HIGH = "0" }
+
+[[rules]]
+id = "hygiene.security_txt"
+category = "hygiene"
+weight = "4"
+credits = { PASS = "1", INFO = "0.5", WARNING = "0.25", FAIL = "0" }
+
+[[rules]]
+id = "hygiene.server_disclosure"
+category = "hygiene"
+weight = "3"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[rules]]
+id = "hygiene.x_powered_by"
+category = "hygiene"
+weight = "3"
+credits = { PASS = "1", INFO = "1", WARNING = "0.5", FAIL = "0" }
+
+[[caps]]
+rule_id = "transport.https_available"
+status = "FAIL"
+maximum_score = 59
+reason = "Verified HTTPS was unavailable; the final posture score is capped at F."
+
+[[caps]]
+rule_id = "transport.tls_validity"
+status = "FAIL"
+maximum_score = 59
+reason = "TLS certificate trust failed; the final posture score is capped at F."
+
+[[caps]]
+rule_id = "transport.tls_hostname"
+status = "FAIL"
+maximum_score = 59
+reason = "TLS hostname validation failed; the final posture score is capped at F."

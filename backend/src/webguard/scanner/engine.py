@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Protocol, cast
 
 from pydantic import ValidationError
 
@@ -17,6 +18,7 @@ from webguard.domain.models import (
     ScanMetadata,
     ScanRequest,
     ScanResult,
+    ScoreBreakdown,
 )
 from webguard.scanner.checks import AuxiliaryRequest, CheckEvaluationError, CheckResult
 from webguard.scanner.context import (
@@ -40,6 +42,8 @@ from webguard.security.errors import (
     URLPolicyError,
 )
 
+_DEFAULT_SCORER = object()
+
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
@@ -49,6 +53,16 @@ def _utc_now() -> datetime:
 class _Attempt:
     observation: ProbeObservation
     raw_result: SafeFetchResult | None
+
+
+class ScoreCalculator(Protocol):
+    """Narrow scoring dependency used after rule execution."""
+
+    def score(
+        self,
+        findings: tuple[Finding, ...],
+        errors: tuple[ScanError, ...],
+    ) -> ScoreBreakdown: ...
 
 
 class ScanEngine:
@@ -61,6 +75,7 @@ class ScanEngine:
         client: SafeFetchClient | None = None,
         limits: NetworkLimits | None = None,
         clock: Callable[[], datetime] = _utc_now,
+        scorer: ScoreCalculator | object | None = _DEFAULT_SCORER,
     ) -> None:
         if registry is None:
             from webguard.checks import default_check_registry
@@ -70,6 +85,12 @@ class ScanEngine:
         self._limits = limits or NetworkLimits()
         self._client = client or SafeHttpClient(limits=self._limits)
         self._clock = clock
+        if scorer is _DEFAULT_SCORER:
+            from webguard.scoring import ScoringEngine
+
+            self._scorer: ScoreCalculator | None = ScoringEngine(registry)
+        else:
+            self._scorer = cast(ScoreCalculator | None, scorer)
 
     async def scan(self, request: ScanRequest) -> ScanResult:
         started_at = self._clock()
@@ -213,12 +234,18 @@ class ScanEngine:
             if errors
             else ScanState.COMPLETED
         )
+        finding_tuple = tuple(findings)
+        error_tuple = tuple(errors)
         return ScanResult(
             target=target,
             hops=landing.raw_result.hops if landing.raw_result is not None else (),
-            findings=tuple(findings),
-            errors=tuple(errors),
-            score=None,
+            findings=finding_tuple,
+            errors=error_tuple,
+            score=(
+                self._scorer.score(finding_tuple, error_tuple)
+                if self._scorer is not None
+                else None
+            ),
             metadata=self._metadata(
                 started_at=started_at,
                 finished_at=finished_at,
@@ -341,10 +368,11 @@ class ScanEngine:
         message: str,
     ) -> ScanResult:
         finished_at = self._clock()
+        errors = (ScanError(kind=kind, code=code, message=message),)
         return ScanResult(
             target=target,
-            errors=(ScanError(kind=kind, code=code, message=message),),
-            score=None,
+            errors=errors,
+            score=self._scorer.score((), errors) if self._scorer is not None else None,
             metadata=self._metadata(
                 started_at=started_at,
                 finished_at=finished_at,
