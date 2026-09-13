@@ -151,6 +151,39 @@ Report destinations are supplied only by the local operator. Target data never s
 Parent directories are not created implicitly, required extensions are checked, and files are
 created exclusively so an existing report is never silently overwritten.
 
+## Phase 8 API boundary
+
+The REST layer is an adapter around `ScanEngine`; it never fetches a target itself and cannot
+import HTTP clients, sockets, `ScanNetworkService`, `SafeHttpClient`, or the pinned transport.
+Only a target string is accepted. Clients cannot choose headers, methods, ports, redirects, TLS
+verification, budgets, or policy switches. The resulting `ScanResult` is projected through the
+existing `ReportBuilder`, so raw bodies, pinned addresses, socket state, query values, and exception
+objects remain structurally unavailable to the response.
+
+The HTTP boundary rejects bodies over 4096 bytes by default, malformed JSON and extra fields,
+unexpected Host names, unsafe URLs, credentials, schemes, and ports. Address-based SSRF rejection
+that occurs after DNS is represented by the engine as a sanitized failed scan; it is never retried
+outside the protected boundary. Negative security findings, partial scans, score withholding, and
+capped scores are result data rather than HTTP failures.
+
+Every request receives a random UUID correlation ID. Error responses have fixed codes and generic
+messages; stack traces and raw exceptions are never returned or logged. Scan logs contain only the
+correlation ID, public scan ID, and completion state. Authorization/Cookie headers, raw target
+queries, response bodies, and findings are not logged.
+
+Each process uses immediate bounded scan admission, an overall cancellation deadline, and a
+bounded-memory per-peer fixed-window rate limiter. The peer key is a process-keyed hash; raw client
+addresses are neither persisted nor logged. `X-Forwarded-For`, `X-Forwarded-Host`, and
+`X-Forwarded-Proto` do not affect application security decisions. The provided development entry
+point disables Uvicorn proxy-header processing. A production operator must explicitly configure
+trusted proxy addresses before enabling that behavior.
+
+CORS permits only configured origins and never enables credentials. Wildcard origins and wildcard
+Host settings fail configuration. CORS is a browser policy, not access control; production still
+requires an HTTPS reverse proxy, external rate limiting, egress restrictions, conservative worker
+sizing, resource limits, safe structured-log handling, and explicit secret/environment management.
+Process-local rate limits are independent per worker and are not a distributed quota.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule

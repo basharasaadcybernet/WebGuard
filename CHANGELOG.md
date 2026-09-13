@@ -48,6 +48,14 @@ begin.
   findings, and operational errors kept separate from vulnerabilities.
 - Report schema `1.0`, deterministic JSON, and self-contained neutral HTML with finding details,
   methodology, technical references, print styling, and no runtime network dependency.
+- Phase 8 FastAPI adapter with versioned health, version, and stateless scan endpoints over the
+  existing `ScanEngine` and `ReportDocument` contracts.
+- Stable API success/error schemas, UUID correlation IDs, documented HTTP status semantics, and a
+  verified `webguard-api` development-server entry point.
+- Configurable immediate scan admission, bounded-memory per-peer rate limiting, API scan deadlines,
+  client-disconnect cancellation, request-body limits, Host validation, and allowlisted CORS.
+- Controlled API tests for completed/partial/failed scans, withheld/capped scores, findings,
+  privacy, SSRF rejection, malformed requests, overload, rate, cancellation, CORS, and architecture.
 
 ### Fixed
 
@@ -82,3 +90,7 @@ begin.
   JavaScript, and add a restrictive report Content Security Policy.
 - Exclude transport internals from report contracts, HTML-escape JSON delimiters, keep JSON stdout
   clean, suppress public tracebacks, and refuse implicit directories or report overwrites.
+- Keep the REST package unable to import network clients or protected networking objects, accept
+  only a target string, and reuse `ScanEngine` plus `ReportBuilder` without score/check duplication.
+- Ignore untrusted forwarding headers for rate/security decisions, disable proxy-header trust in
+  the development entry point, forbid wildcard CORS/Host configuration, and sanitize API failures.

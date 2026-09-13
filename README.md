@@ -4,7 +4,7 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1-7:
+This repository currently contains milestones 1-8:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters;
@@ -12,7 +12,8 @@ This repository currently contains milestones 1-7:
 - deterministic scanner orchestration with a shared request budget;
 - nineteen passive transport, header, cookie, content, and disclosure checks; and
 - versioned, deterministic, coverage-aware scoring with per-rule contributions; and
-- a Typer/Rich CLI plus versioned JSON and self-contained HTML reports.
+- a Typer/Rich CLI plus versioned JSON and self-contained HTML reports; and
+- a minimal FastAPI REST adapter with bounded admission, rate, request, and execution controls.
 
 The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
 expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
@@ -23,8 +24,9 @@ X-Powered-By disclosure observations.
 
 The default scanner produces a transparent score breakdown when at least 70% of applicable rule
 weight is evaluated and essential transport evidence is available. Phase 7 presents that same
-public result through terminal, JSON, and offline HTML output. No API, frontend, database,
-persistence, history, monitoring, or active scanner is implemented.
+public result through terminal, JSON, and offline HTML output. Phase 8 exposes the same immutable
+report contract through a stateless `/api/v1/` API; it adds no scanner or scoring logic. No
+frontend, database, persistence, history, monitoring, or active scanner is implemented.
 
 ## Development setup
 
@@ -38,7 +40,7 @@ python -m venv .venv
 .\.venv\Scripts\mypy.exe
 ```
 
-The editable installation provides the real `webguard` executable:
+The editable installation provides the real `webguard` and `webguard-api` executables:
 
 ```powershell
 webguard --help
@@ -47,7 +49,13 @@ webguard scan https://example.com
 webguard scan https://example.com --format json
 webguard scan https://example.com --format json --output result.json
 webguard scan https://example.com --report report.html
+webguard-api
 ```
+
+The API development server binds to `127.0.0.1:8000` by default. Its three endpoints are
+`GET /api/v1/health`, `GET /api/v1/version`, and `POST /api/v1/scans`. See `docs/API.md` for the
+request/response contract, environment settings, status policy, and production deployment
+requirements. FastAPI docs are available at `/docs` unless explicitly disabled.
 
 JSON sent to stdout contains JSON only. WebGuard refuses to overwrite report files, and report
 parent directories must already exist. See `docs/CLI.md` for exit codes and output behavior, and
@@ -73,7 +81,8 @@ immutable observations; HTTPS and one-hop HTTP probes are collected centrally un
 per-scan request budget. Fixed auxiliary observations such as `/.well-known/security.txt` are
 declared by rule metadata and collected by the same orchestrator and protected client. See
 `SECURITY.md` before adding network behavior, `docs/CHECKS.md` for exact rule semantics,
-`docs/SCORING.md` for scoring, and `docs/REPORTING.md` for the report boundary.
+`docs/SCORING.md` for scoring, `docs/REPORTING.md` for the report boundary, and `docs/API.md` for
+the REST boundary.
 
 ## Product scope
 

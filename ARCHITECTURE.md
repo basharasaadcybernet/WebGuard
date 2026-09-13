@@ -16,6 +16,8 @@ The package uses a `src` layout under `backend/src/webguard`. The implemented la
 6. `reporting`: pure projection of public scan results into a versioned report model, deterministic
    JSON, and self-contained escaped HTML.
 7. `cli`: a small Typer adapter and restrained Rich terminal presentation.
+8. `api`: a FastAPI adapter with strict public schemas, bounded process-local admission/rate
+   controls, request correlation, CORS/Host policy, and cancellable scan execution.
 
 The security package is deliberately the only public home for outbound networking. Future
 scanner checks receive an immutable `ScanContext`; they do not receive a raw HTTP client or the
@@ -30,7 +32,7 @@ accidental boundary bypass into a normal test failure.
 ## Dependency direction
 
 ```text
-CLI / future API
+CLI / FastAPI v1
           |
       ScanEngine
        /       |       \
@@ -48,8 +50,8 @@ policy    +          |
        IP policy  public destination only
 
 ScanResult -- ReportBuilder -- ReportDocument v1.0
-                                  |    |    |
-                               terminal JSON HTML
+                                  |    |    |      |
+                               terminal JSON HTML API envelope
 ```
 
 Domain contracts do not depend on interfaces or scanner implementations. Scanner orchestration
@@ -112,9 +114,31 @@ ships no JavaScript or external runtime dependency. CLI file output uses explici
 requires an existing parent directory, and creates files exclusively rather than overwriting.
 Operational exit codes stay separate from security findings and grades.
 
+Phase 8 follows `HTTP -> FastAPI validation -> ScanEngine -> ReportBuilder -> ScanApiResponse`.
+The only scan input is `target`; routes cannot configure ports, redirects, TLS, headers, methods,
+budgets, or SSRF policy. The API package imports neither HTTP clients nor scanner-network/security
+transport objects, and AST tests enforce that boundary. A successful API execution returns the
+same `ReportDocument` used by Phase 7, nested in a small versioned envelope with a random request
+ID. It does not recalculate score or duplicate findings.
+
+One process admits at most a configured number of scans. Admission is immediate: when all slots
+are active, the API returns 503 instead of retaining an unbounded work queue. A bounded-memory,
+fixed-window limiter hashes the ASGI peer address and returns 429 after the per-client allowance.
+It deliberately ignores forwarding headers. Each admitted scan also has an API-wide deadline and
+disconnect polling; cancellation always releases its capacity slot. These process-local controls
+are defense in depth, not a substitute for reverse-proxy/CDN rate limiting in a multi-process
+deployment.
+
+The outer ASGI boundary validates Host, caps the complete body before JSON parsing, and assigns a
+UUID correlation ID. CORS has an explicit origin list, never wildcard credentials, and production
+must configure both allowed origins and public Host names. The application stores no target,
+result, client address, or request ID. The rate limiter retains only keyed hashes temporarily in
+bounded process memory.
+
 ## Deferred components
 
-REST endpoints, persistence, history, monitoring, PDF output, and the frontend remain deferred.
+Persistence, history, monitoring, PDF output, HTML-over-API rendering, and the frontend remain
+deferred.
 Active exploitation, fuzzing, enumeration, and port scanning are outside product scope.
 
 ## Current limitations
@@ -122,8 +146,8 @@ Active exploitation, fuzzing, enumeration, and port scanning are outside product
 The transport selects the first validated public DNS address and does not yet retry another public
 answer if the connection fails. It requests identity encoding and fails closed when a server sends
 compressed content anyway; bounded streaming decompression can be added later without weakening
-the size limit. Application-wide concurrency limits belong to the future orchestration/API layer.
+the size limit. API admission/rate limits are process-local, so each worker has independent state.
 
-Phase 7 adds controlled CLI/report fixtures and injection attempts to the transport, rule, and
-scoring test layers. The normal suite remains deterministic and never requires external DNS or
-Internet access.
+Phase 8 adds controlled API contract, privacy, CORS, Host, size, rate, concurrency, timeout,
+cancellation, and architecture tests. The normal suite remains deterministic and never requires
+external DNS or Internet access.

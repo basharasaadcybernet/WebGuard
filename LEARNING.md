@@ -400,3 +400,56 @@ This architectural boundary is stronger than remembering to hide one field: raw 
 details, socket state, query secrets, and exception objects are structurally unavailable to report
 renderers. The same projection feeds terminal, JSON, and HTML output, preventing interface-specific
 security logic or score drift.
+
+## What a REST API means
+
+A REST API is an HTTP interface that programs use instead of a terminal screen. A client sends a
+request to a named URL and receives a response. WebGuard uses JSON, a compact text format with
+objects, arrays, strings, numbers, booleans, and null, for both scan input and structured output.
+`POST /api/v1/scans` means “submit this target for one scan”; it does not create a persisted scan
+record, so Phase 8 intentionally adds no follow-up CRUD endpoints.
+
+HTTP status codes describe whether the API operation worked. `200` means WebGuard produced a
+public result—even if the target has HIGH findings, an F grade, a partial scan, or a safe failed
+network observation. `422` means the request or target syntax was rejected, `429` means the local
+rate allowance is exhausted, `503` means all process scan slots are active, `504` means the API
+deadline expired, and `500` means an unexpected internal failure. Security posture belongs in the
+report; it is not an HTTP error.
+
+## FastAPI as an adapter
+
+FastAPI validates HTTP and Pydantic models and generates OpenAPI documentation. It is intentionally
+only an adapter here: target text becomes `ScanRequest`, `ScanEngine` performs the real work, and
+`ReportBuilder` creates the already versioned public model. Keeping that direction prevents a web
+route from quietly gaining a second HTTP client, security check, or scoring formula. The API must
+never bypass SSRF protection because a browser-controlled target is still attacker-controlled
+server input; every target fetch continues through `ScanEngine -> ScanNetworkService ->
+SafeHttpClient`.
+
+## Concurrency, semaphores, and rate limiting
+
+Concurrency is the number of scans running at the same time. A semaphore-like admission counter
+holds a small number of slots. WebGuard attempts to take one immediately and returns `503` when no
+slot is free, so requests cannot form an unlimited in-memory queue. `finally` releases the slot on
+success, failure, timeout, disconnect, or cancellation.
+
+Rate limiting controls how often one peer may start scans within a time window. Phase 8 uses a
+simple bounded process-local limiter suitable for a single-instance v0.1 service. It hashes the
+direct peer address, does not trust `X-Forwarded-For`, and persists nothing. A production reverse
+proxy or CDN should enforce the public distributed quota before traffic reaches WebGuard.
+
+## CORS and reverse proxies
+
+CORS tells a browser which frontend origins may read API responses. It is not authentication or a
+firewall. WebGuard uses an explicit origin list, disables cross-origin credentials, and refuses a
+wildcard origin configuration. A reverse proxy normally terminates HTTPS, applies public request
+and rate limits, and forwards accepted traffic to the private API listener. Forwarding headers are
+untrusted unless the server is explicitly configured with the exact proxy addresses.
+
+## Stateless and persistent applications
+
+A stateless scan request contains everything needed to produce one response. Phase 8 does not save
+targets, results, request IDs, reports, client history, or accounts. A persistent application would
+store records in a database so they survive process restarts and can be retrieved later. That is a
+different product boundary and remains deferred; temporary bounded counters in one process are
+operational protection, not scan history.

@@ -10,10 +10,10 @@
 - [x] Additional passive checks for cookies, security.txt, mixed content, and disclosure (Phase 5B).
 - [x] Deterministic, versioned posture scoring, coverage, exclusions, and transport caps (Phase 6).
 - [x] Professional CLI presentation and versioned JSON/self-contained HTML reports (Phase 7).
-- [ ] REST API.
+- [x] Secure stateless REST API with bounded process controls (Phase 8).
 - [ ] CyberNet-branded web interface.
 - [ ] Deployment hardening and release validation.
 
 No unchecked milestone is implemented by the current repository state. The passive scanner,
-transparent scoring, CLI, and reports are ready for Phase 8 API design, but no REST endpoint,
-frontend, persistence, monitoring, or active assessment capability exists yet.
+transparent scoring, CLI, reports, and REST adapter are ready for a Phase 9 frontend, but no
+frontend, persistence, monitoring, deployment, or active assessment capability exists yet.
