@@ -13,6 +13,9 @@ The package uses a `src` layout under `backend/src/webguard`. The implemented la
    hygiene rules that inspect only `ScanContext` observations.
 5. `scoring`: versioned TOML policy loading, fail-closed registry/config validation, deterministic
    Decimal calculations, and transparent score contribution models.
+6. `reporting`: pure projection of public scan results into a versioned report model, deterministic
+   JSON, and self-contained escaped HTML.
+7. `cli`: a small Typer adapter and restrained Rich terminal presentation.
 
 The security package is deliberately the only public home for outbound networking. Future
 scanner checks receive an immutable `ScanContext`; they do not receive a raw HTTP client or the
@@ -27,7 +30,7 @@ accidental boundary bypass into a normal test failure.
 ## Dependency direction
 
 ```text
-future CLI / API / reports
+CLI / future API
           |
       ScanEngine
        /       |       \
@@ -43,6 +46,10 @@ ScanNetworkService -- landing + HTTPS + one-hop HTTP + security.txt
 URL    Resolver  PinnedTransport
 policy    +          |
        IP policy  public destination only
+
+ScanResult -- ReportBuilder -- ReportDocument v1.0
+                                  |    |    |
+                               terminal JSON HTML
 ```
 
 Domain contracts do not depend on interfaces or scanner implementations. Scanner orchestration
@@ -94,10 +101,21 @@ fails startup rather than silently changing output. Public `ScoreBreakdown` reta
 scores, category/rule math, deductions, exclusions and reasons, scoring version, coverage,
 withholding reasons, and an applied cap. It never copies finding evidence.
 
+Phase 7 reporting begins only after `ScanEngine` has produced an immutable public `ScanResult`.
+`ReportBuilder` selects and orders non-pass findings, derives severity counts, and adds fixed
+methodology and limitations. JSON, HTML, and terminal renderers consume the same versioned
+`ReportDocument`; none recalculates scores or imports scanner networking. The JSON schema version,
+software version, and scoring version remain distinct compatibility signals.
+
+The HTML renderer escapes every dynamic value, permits only HTTP(S) links, embeds neutral CSS, and
+ships no JavaScript or external runtime dependency. CLI file output uses explicit user paths,
+requires an existing parent directory, and creates files exclusively rather than overwriting.
+Operational exit codes stay separate from security findings and grades.
+
 ## Deferred components
 
-Reports, REST endpoints, CLI scan commands, persistence, and the frontend remain deferred. Active
-exploitation, fuzzing, enumeration, and port scanning are outside product scope.
+REST endpoints, persistence, history, monitoring, PDF output, and the frontend remain deferred.
+Active exploitation, fuzzing, enumeration, and port scanning are outside product scope.
 
 ## Current limitations
 
@@ -106,5 +124,6 @@ answer if the connection fails. It requests identity encoding and fails closed w
 compressed content anyway; bounded streaming decompression can be added later without weakening
 the size limit. Application-wide concurrency limits belong to the future orchestration/API layer.
 
-Phase 6 uses controlled transport, rule, and named scoring fixtures as its source of truth. The
-normal suite remains fully deterministic and never requires external DNS or Internet access.
+Phase 7 adds controlled CLI/report fixtures and injection attempts to the transport, rule, and
+scoring test layers. The normal suite remains deterministic and never requires external DNS or
+Internet access.

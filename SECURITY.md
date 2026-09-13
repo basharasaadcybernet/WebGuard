@@ -129,6 +129,28 @@ Phase 5B uncovered no bypass of the protected network boundary. The auxiliary-fe
 regression coverage demonstrating that private redirect destinations, over-budget requests, and
 oversized security.txt responses fail without creating vulnerability findings.
 
+## Phase 7 report boundary
+
+Reports consume only immutable public `ScanResult` and `ScoreBreakdown` contracts. The report
+model omits redirect-hop destinations, internal response bodies, pinned addresses, sockets, and raw
+exception data. Sensitive target query values are already excluded from model serialization, while
+cookie and authorization values are removed before check evaluation.
+
+HTML rendering treats the target, banners, cookie names, redirect text, descriptions, evidence,
+recommendations, and references as hostile input. Dynamic text and attributes are HTML escaped;
+links are restricted to HTTP and HTTPS; CSS is embedded; JavaScript is absent; and a restrictive
+Content Security Policy disables scripts, network connections, objects, forms, and base-URL
+changes. Dedicated security tests inject markup and event-handler payloads through each relevant
+surface.
+
+JSON is serialized from the same report contract, never from transport objects. It emits no Rich
+formatting and escapes HTML delimiters defensively. CLI errors use fixed public messages on stderr
+without tracebacks or internal exception text.
+
+Report destinations are supplied only by the local operator. Target data never selects a filename.
+Parent directories are not created implicitly, required extensions are checked, and files are
+created exclusively so an existing report is never silently overwritten.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule

@@ -42,6 +42,12 @@ begin.
   and final scores, coverage, grades, deductions, and applied-cap contracts.
 - Named excellent, average, weak, transport-broken, and low-coverage regression profiles plus
   fail-closed configuration, determinism, grade-boundary, and serialization tests.
+- Phase 7 `webguard` Typer entry point with help, version, human scan, JSON, HTML, and explicit
+  output-file behavior.
+- Restrained Rich terminal summaries with score withholding/caps, coverage, categories, ordered
+  findings, and operational errors kept separate from vulnerabilities.
+- Report schema `1.0`, deterministic JSON, and self-contained neutral HTML with finding details,
+  methodology, technical references, print styling, and no runtime network dependency.
 
 ### Fixed
 
@@ -72,3 +78,7 @@ begin.
   material from evidence fields.
 - Replace the permanently zero finding score placeholder with authoritative versioned
   `RuleContribution` records.
+- Escape all target-controlled HTML report data, restrict report links to HTTP(S), emit no
+  JavaScript, and add a restrictive report Content Security Policy.
+- Exclude transport internals from report contracts, HTML-escape JSON delimiters, keep JSON stdout
+  clean, suppress public tracebacks, and refuse implicit directories or report overwrites.

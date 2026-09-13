@@ -4,14 +4,15 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1-6:
+This repository currently contains milestones 1-7:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters;
 - a fail-closed outbound networking boundary with SSRF protections;
 - deterministic scanner orchestration with a shared request budget;
 - nineteen passive transport, header, cookie, content, and disclosure checks; and
-- versioned, deterministic, coverage-aware scoring with per-rule contributions.
+- versioned, deterministic, coverage-aware scoring with per-rule contributions; and
+- a Typer/Rich CLI plus versioned JSON and self-contained HTML reports.
 
 The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
 expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
@@ -20,9 +21,10 @@ Phase 5B adds grouped Secure/HttpOnly/SameSite cookie observations, an RFC 9116-
 `security.txt` check, bounded static mixed-content detection, and separate Server and
 X-Powered-By disclosure observations.
 
-The default scanner now produces a transparent score breakdown when at least 70% of applicable
-rule weight is evaluated and essential transport evidence is available. No report generator, CLI
-scan command, API, frontend, or persistence is implemented.
+The default scanner produces a transparent score breakdown when at least 70% of applicable rule
+weight is evaluated and essential transport evidence is available. Phase 7 presents that same
+public result through terminal, JSON, and offline HTML output. No API, frontend, database,
+persistence, history, monitoring, or active scanner is implemented.
 
 ## Development setup
 
@@ -35,6 +37,21 @@ python -m venv .venv
 .\.venv\Scripts\ruff.exe check .
 .\.venv\Scripts\mypy.exe
 ```
+
+The editable installation provides the real `webguard` executable:
+
+```powershell
+webguard --help
+webguard version
+webguard scan https://example.com
+webguard scan https://example.com --format json
+webguard scan https://example.com --format json --output result.json
+webguard scan https://example.com --report report.html
+```
+
+JSON sent to stdout contains JSON only. WebGuard refuses to overwrite report files, and report
+parent directories must already exist. See `docs/CLI.md` for exit codes and output behavior, and
+`docs/REPORTING.md` for schema and HTML security details.
 
 Optional harmless public-network smoke tests are excluded from normal runs. Invoke them explicitly:
 
@@ -55,8 +72,8 @@ All outbound HTTP access must use `webguard.security.SafeHttpClient`. Real check
 immutable observations; HTTPS and one-hop HTTP probes are collected centrally under the same
 per-scan request budget. Fixed auxiliary observations such as `/.well-known/security.txt` are
 declared by rule metadata and collected by the same orchestrator and protected client. See
-`SECURITY.md` before adding network behavior, `docs/CHECKS.md` for exact rule semantics, and
-`docs/SCORING.md` for the complete scoring calculation.
+`SECURITY.md` before adding network behavior, `docs/CHECKS.md` for exact rule semantics,
+`docs/SCORING.md` for scoring, and `docs/REPORTING.md` for the report boundary.
 
 ## Product scope
 

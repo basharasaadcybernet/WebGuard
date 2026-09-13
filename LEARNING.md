@@ -357,3 +357,46 @@ Finally, three visible caps prevent a failed HTTPS availability, certificate-tru
 control from coexisting with a passing grade. The raw score is retained, the final score is capped
 at 59/F only when necessary, and the triggering reason is public. This is a small explicit safety
 rule, not a hidden second scoring system.
+
+## What a CLI is
+
+A command-line interface lets a person or automation run WebGuard from a shell. Typer parses the
+small command surface, while Rich presents the same public result with readable tables and panels.
+The CLI coordinates input, scanning, rendering, files, and process status; it contains no security
+checks or scoring policy.
+
+## Standard output, standard error, and exit codes
+
+Standard output is the command's requested data. For `--format json`, it must contain only JSON so
+another program can parse it safely. Standard error carries confirmations and command errors
+without contaminating that data stream.
+
+An exit code describes whether the software completed its work. Zero means the scan executed
+successfully even if the target has HIGH findings or an F grade. Codes 2-5 distinguish bad input,
+scan failure, partial evidence, and an internal failure. Security posture and software execution
+status answer different questions and must not be conflated.
+
+## Why machine-readable JSON matters
+
+JSON gives CI systems, future APIs, frontends, and third-party tools stable named fields instead of
+forcing them to scrape terminal text. Report schema `1.0` is separate from the WebGuard software
+version and scoring ruleset version: each can evolve for a different reason. Exact Decimal values
+remain strings, and identical public input produces identical serialized output.
+
+## Report generation and injection safety
+
+An HTML report is code interpreted by a browser even when it is opened from disk. A malicious
+Server banner, cookie name, redirect, or evidence string could become script or an event handler if
+inserted as trusted markup. This is report injection, a form of cross-site scripting against the
+person reading the generated file.
+
+WebGuard therefore performs contextual HTML escaping, restricts link schemes, emits no JavaScript,
+and adds a restrictive Content Security Policy. The report embeds only neutral CSS and works
+offline. It is generated deterministically from `ReportDocument`, not from templates with trusted
+target HTML.
+
+The report builder consumes sanitized public `ScanResult` models rather than network internals.
+This architectural boundary is stronger than remembering to hide one field: raw bodies, pinned IP
+details, socket state, query secrets, and exception objects are structurally unavailable to report
+renderers. The same projection feeds terminal, JSON, and HTML output, preventing interface-specific
+security logic or score drift.
