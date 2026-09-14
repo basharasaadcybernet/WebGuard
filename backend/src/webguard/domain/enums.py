@@ -14,13 +14,13 @@ class FindingStatus(StrEnum):
 
 
 class RuleEvaluationState(StrEnum):
-    """Scoring state for an evaluated, failed, or inapplicable rule."""
+    """Scoring state for an evaluated, unevaluated, or inapplicable rule."""
 
     PASS = "PASS"
     INFO = "INFO"
     WARNING = "WARNING"
     FAIL = "FAIL"
-    ERROR = "ERROR"
+    NOT_EVALUATED = "NOT_EVALUATED"
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 

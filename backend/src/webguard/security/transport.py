@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import errno
 import ipaddress
 import socket
 import ssl
@@ -20,12 +21,15 @@ from webguard.domain.models import NormalizedTarget
 from webguard.security.address_policy import IPAddress, PublicAddressPolicy
 from webguard.security.config import NetworkLimits
 from webguard.security.errors import (
+    ConnectionRefused,
+    ConnectionTerminated,
     EndpointUnavailable,
     RequestTimedOut,
     ResponseTooLarge,
     SecurityBoundaryError,
     TLSCertificateExpired,
     TLSCertificateUntrusted,
+    TLSHandshakeFailed,
     TLSHostnameMismatch,
     TransportError,
 )
@@ -161,7 +165,7 @@ class _PinnedNetworkStream(httpcore.AsyncNetworkStream):
             raise _classify_certificate_error(exc) from exc
         except (OSError, ssl.SSLError) as exc:
             await self.aclose()
-            raise httpcore.ConnectError from exc
+            raise TLSHandshakeFailed("TLS negotiation failed") from exc
         except BaseException:
             await self.aclose()
             raise
@@ -222,6 +226,8 @@ class _PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
             raise httpcore.ConnectTimeout from exc
         except OSError as exc:
             raw_socket.close()
+            if exc.errno == errno.ECONNREFUSED or getattr(exc, "winerror", None) == 10061:
+                raise ConnectionRefused("Validated endpoint refused the connection") from exc
             raise httpcore.ConnectError from exc
         except BaseException:
             raw_socket.close()
@@ -383,8 +389,17 @@ class HttpxPinnedTransport:
             raise RequestTimedOut("Request exceeded a configured timeout") from exc
         except ResponseTooLarge:
             raise
+        except (ConnectionRefused, TLSHandshakeFailed):
+            raise
         except (httpx.ConnectError, httpcore.ConnectError) as exc:
             raise EndpointUnavailable("Validated endpoint connection failed") from exc
+        except (
+            httpx.ReadError,
+            httpx.RemoteProtocolError,
+            httpcore.ReadError,
+            httpcore.RemoteProtocolError,
+        ) as exc:
+            raise ConnectionTerminated("Connection ended before the response completed") from exc
         except (httpx.HTTPError, httpcore.NetworkError, httpcore.ProtocolError, OSError) as exc:
             raise TransportError("Pinned network request failed") from exc
 

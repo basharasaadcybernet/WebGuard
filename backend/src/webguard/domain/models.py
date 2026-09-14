@@ -236,7 +236,7 @@ class RuleContribution(ContractModel):
     @model_validator(mode="after")
     def validate_contribution(self) -> RuleContribution:
         excluded = self.state in {
-            RuleEvaluationState.ERROR,
+            RuleEvaluationState.NOT_EVALUATED,
             RuleEvaluationState.NOT_APPLICABLE,
         }
         if excluded:
@@ -268,7 +268,10 @@ class RuleExclusion(ContractModel):
             pattern=r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$",
         ),
     ]
-    state: Literal[RuleEvaluationState.ERROR, RuleEvaluationState.NOT_APPLICABLE]
+    state: Literal[
+        RuleEvaluationState.NOT_EVALUATED,
+        RuleEvaluationState.NOT_APPLICABLE,
+    ]
     reason: LongText
 
 

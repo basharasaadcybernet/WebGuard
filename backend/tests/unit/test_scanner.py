@@ -23,7 +23,20 @@ from webguard.scanner.registry import CheckRegistry, DuplicateRuleIdError
 from webguard.security.budget import RequestBudget
 from webguard.security.client import SafeFetchResult, SafeResponse
 from webguard.security.config import NetworkLimits
-from webguard.security.errors import TransportError, URLPolicyError
+from webguard.security.errors import (
+    BlockedAddressError,
+    ConnectionRefused,
+    ConnectionTerminated,
+    DNSResolutionError,
+    RedirectPolicyError,
+    RequestTimedOut,
+    TLSCertificateExpired,
+    TLSCertificateUntrusted,
+    TLSHandshakeFailed,
+    TLSHostnameMismatch,
+    TransportError,
+    URLPolicyError,
+)
 from webguard.security.transport import TransportResponse
 from webguard.security.url_policy import URLPolicy
 
@@ -346,6 +359,35 @@ async def test_target_and_network_failures_return_failed_scan(
     assert result.errors[0].kind is kind
     assert result.errors[0].code == code
     assert "secret detail" not in result.model_dump_json()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        (DNSResolutionError("secret"), "network.dns_resolution_failed"),
+        (ConnectionRefused("secret"), "network.connection_refused"),
+        (RequestTimedOut("secret"), "network.connection_timeout"),
+        (TLSHandshakeFailed("secret"), "tls.handshake_failed"),
+        (TLSCertificateUntrusted("secret"), "tls.certificate_untrusted"),
+        (TLSCertificateExpired("secret"), "tls.certificate_expired"),
+        (TLSHostnameMismatch("secret"), "tls.hostname_mismatch"),
+        (ConnectionTerminated("secret"), "network.connection_terminated"),
+        (RedirectPolicyError("secret"), "network.redirect_rejected"),
+        (BlockedAddressError("secret"), "network.destination_blocked"),
+        (TransportError("secret"), "network.fetch_failed"),
+    ],
+)
+async def test_network_failures_use_safe_specific_classifications(
+    error: Exception, code: str
+) -> None:
+    result = await engine(client=FakeSafeClient(error=error)).scan(
+        ScanRequest(url="https://example.com")
+    )
+
+    assert result.metadata.state is ScanState.FAILED
+    assert result.errors[0].code == code
+    assert "secret" not in result.model_dump_json()
 
 
 @pytest.mark.asyncio

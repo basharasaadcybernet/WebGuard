@@ -387,6 +387,26 @@ def test_http_image_is_a_lower_risk_mixed_content_warning() -> None:
     assert "Passive/lower-risk" in result.evidence[0].value
 
 
+@pytest.mark.parametrize("relation", ["icon", "preload", "prefetch"])
+def test_fetched_link_relations_are_lower_risk_mixed_content(relation: str) -> None:
+    markup = f'<link rel="{relation}" href="http://cdn.example/resource">'
+    result = finding(MixedContentCheck(), context(landing_body=markup.encode()))
+    assert result.status is FindingStatus.WARNING
+    assert result.severity is Severity.LOW
+
+
+@pytest.mark.parametrize(
+    "relation",
+    ["profile", "canonical", "alternate", "nonsense,,,", ""],
+)
+def test_metadata_and_malformed_link_relations_are_not_fetched_resources(
+    relation: str,
+) -> None:
+    markup = f'<link rel="{relation}" href="http://cdn.example/resource">'
+    result = finding(MixedContentCheck(), context(landing_body=markup.encode()))
+    assert result.status is FindingStatus.PASS
+
+
 def test_non_http_and_malformed_references_are_not_reported() -> None:
     body = b"""
     <script src="/relative.js"></script>

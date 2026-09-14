@@ -265,7 +265,7 @@ class HtmlReportRenderer:
         if contribution is None:
             return ""
         if contribution.state in {
-            RuleEvaluationState.ERROR,
+            RuleEvaluationState.NOT_EVALUATED,
             RuleEvaluationState.NOT_APPLICABLE,
         }:
             return (

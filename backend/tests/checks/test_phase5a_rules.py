@@ -202,7 +202,7 @@ def test_real_rule_ids_are_unique_and_ordered_deterministically() -> None:
 def test_https_availability_success_and_unavailable() -> None:
     rule = HTTPSAvailabilityCheck()
     assert finding(rule, context()).status is FindingStatus.PASS
-    unavailable = context(https_failure="network.endpoint_unavailable")
+    unavailable = context(https_failure="network.connection_refused")
     result = finding(rule, unavailable)
     assert result.status is FindingStatus.FAIL
     assert "exploitation" in result.description

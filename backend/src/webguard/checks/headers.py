@@ -6,7 +6,7 @@ import re
 
 from webguard.checks.common import finding_result
 from webguard.domain.enums import FindingStatus, HttpScheme, Severity
-from webguard.scanner.checks import CheckMetadata, CheckResult
+from webguard.scanner.checks import CheckEvaluationError, CheckMetadata, CheckResult
 from webguard.scanner.context import ResponseObservation, ScanContext
 
 _OWASP_HEADERS = "https://owasp.org/www-project-secure-headers/"
@@ -43,7 +43,7 @@ _KNOWN_CSP_DIRECTIVES = frozenset(
 def _landing(context: ScanContext) -> ResponseObservation:
     response = context.landing_page
     if response is None:
-        raise RuntimeError("Header check evaluated without a landing response")
+        raise CheckEvaluationError("The landing response was unavailable")
     return response
 
 
@@ -79,7 +79,7 @@ class StrictTransportSecurityCheck:
 
     def is_applicable(self, context: ScanContext) -> bool:
         response = context.landing_page
-        return response is not None and response.target.scheme is HttpScheme.HTTPS
+        return response is None or response.target.scheme is HttpScheme.HTTPS
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -167,7 +167,8 @@ class ContentSecurityPolicyCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None and _is_html(context.landing_page)
+        response = context.landing_page
+        return response is None or _is_html(response)
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -237,7 +238,7 @@ class XContentTypeOptionsCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -294,7 +295,7 @@ class ReferrerPolicyCheck:
     _weak = frozenset({"no-referrer-when-downgrade", "unsafe-url"})
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -360,7 +361,7 @@ class PermissionsPolicyCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -441,7 +442,8 @@ class ClickjackingProtectionCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None and _is_html(context.landing_page)
+        response = context.landing_page
+        return response is None or _is_html(response)
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)

@@ -198,7 +198,7 @@ function isRuleContribution(value: unknown): boolean {
       "rule_id", "category", "configured_points", "available_points", "earned_points",
       "deduction", "reason",
     ]) &&
-    isOneOf(value.state, ["PASS", "INFO", "WARNING", "FAIL", "ERROR", "NOT_APPLICABLE"]) &&
+    isOneOf(value.state, ["PASS", "INFO", "WARNING", "FAIL", "NOT_EVALUATED", "NOT_APPLICABLE"]) &&
     (value.credit_fraction === null || typeof value.credit_fraction === "string") &&
     (value.exclusion_reason === null || typeof value.exclusion_reason === "string");
 }
@@ -206,7 +206,7 @@ function isRuleContribution(value: unknown): boolean {
 function isRuleExclusion(value: unknown): boolean {
   return isRecord(value) &&
     hasStrings(value, ["rule_id", "reason"]) &&
-    isOneOf(value.state, ["ERROR", "NOT_APPLICABLE"]);
+    isOneOf(value.state, ["NOT_EVALUATED", "NOT_APPLICABLE"]);
 }
 
 function isScoreCap(value: unknown): boolean {

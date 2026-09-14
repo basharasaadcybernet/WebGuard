@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from webguard.checks.common import finding_result
 from webguard.domain.enums import FindingStatus, HttpScheme, Severity
-from webguard.scanner.checks import CheckMetadata, CheckResult
+from webguard.scanner.checks import CheckEvaluationError, CheckMetadata, CheckResult
 from webguard.scanner.context import ScanContext
 
 _COOKIE_REFERENCE = "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies"
@@ -23,6 +23,8 @@ class _Cookie:
 
 
 def _observed_cookies(context: ScanContext) -> tuple[_Cookie, ...]:
+    if context.landing_page is None:
+        raise CheckEvaluationError("The landing response was unavailable")
     cookies: list[_Cookie] = []
     for response in context.redirect_chain:
         for value in response.header_values("set-cookie"):
@@ -72,7 +74,7 @@ class CookieSecureCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         cookies = _observed_cookies(context)
@@ -144,7 +146,7 @@ class CookieHttpOnlyCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         cookies = _observed_cookies(context)
@@ -198,7 +200,7 @@ class CookieSameSiteCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         cookies = _observed_cookies(context)

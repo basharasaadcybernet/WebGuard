@@ -4,6 +4,11 @@ import { Icon } from "../Icon";
 
 export function FindingCard({ finding, contribution }: { finding: Finding; contribution?: RuleContribution }) {
   const severity = finding.severity ?? "INFO";
+  const notApplicable = finding.evaluation_state === "NOT_APPLICABLE";
+  const scoringReasonIsDuplicate = contribution
+    ? contribution.reason.trim().replace(/\s+/g, " ").toLowerCase()
+      === finding.description.trim().replace(/\s+/g, " ").toLowerCase()
+    : false;
   const safeReferences = finding.references
     .map((reference) => ({ label: reference, href: safeExternalHref(reference) }))
     .filter((reference): reference is { label: string; href: string } => reference.href !== null);
@@ -12,10 +17,10 @@ export function FindingCard({ finding, contribution }: { finding: Finding; contr
     <details className={`finding-card severity-${severity.toLowerCase()}`}>
       <summary>
         <div className="finding-summary-copy">
-          <span className="severity-badge"><span aria-hidden="true" />{severity}</span>
+          <span className={`severity-badge${notApplicable ? " not-applicable-badge" : ""}`}><span aria-hidden="true" />{notApplicable ? "N/A" : severity}</span>
           <div><h3>{finding.title}</h3><p>{finding.category} · <code>{finding.id}</code></p></div>
         </div>
-        <div className="finding-status"><span>{finding.status}</span><Icon name="chevron" /></div>
+        <div className="finding-status"><span>{notApplicable ? "NOT APPLICABLE" : finding.status}</span><Icon name="chevron" /></div>
       </summary>
       <div className="finding-detail">
         <section><h4>Description</h4><p>{finding.description}</p></section>
@@ -33,12 +38,16 @@ export function FindingCard({ finding, contribution }: { finding: Finding; contr
         {contribution ? (
           <section>
             <h4>Scoring impact</h4>
-            <div className="impact-grid">
-              <span>Available <strong>{formatPoints(contribution.available_points)}</strong></span>
-              <span>Earned <strong>{formatPoints(contribution.earned_points)}</strong></span>
-              <span>Deducted <strong>{formatPoints(contribution.deduction)}</strong></span>
-            </div>
-            <p className="detail-note">{contribution.reason}</p>
+            {contribution.state === "NOT_APPLICABLE" ? (
+              <p className="detail-note">Not applicable; excluded without credit or deduction.</p>
+            ) : (
+              <div className="impact-grid">
+                <span>Available <strong>{formatPoints(contribution.available_points)}</strong></span>
+                <span>Earned <strong>{formatPoints(contribution.earned_points)}</strong></span>
+                <span>Deducted <strong>{formatPoints(contribution.deduction)}</strong></span>
+              </div>
+            )}
+            {!scoringReasonIsDuplicate && contribution.state !== "NOT_APPLICABLE" ? <p className="detail-note">{contribution.reason}</p> : null}
           </section>
         ) : null}
         {safeReferences.length ? (

@@ -288,7 +288,7 @@ def test_one_error_reduces_coverage_but_is_not_pass_or_deduction() -> None:
     )
     assert result.coverage == Decimal("0.900")
     assert result.score == 100
-    assert contribution.state.value == "ERROR"
+    assert contribution.state.value == "NOT_EVALUATED"
     assert contribution.available_points == 0
     assert contribution.earned_points == 0
     assert contribution.deduction == 0

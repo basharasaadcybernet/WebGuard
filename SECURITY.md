@@ -118,8 +118,22 @@ headers. Authorization data remains fully redacted.
 
 Mixed-content analysis uses the standard non-executing HTML parser on the already-bounded final
 HTTPS landing body. It does not start a browser, execute script, fetch subresources, or evaluate
-raw HTML. Only explicit `http://` attributes are considered. Evidence URLs pass through the same
-credential, query, and fragment redaction used by public hop data; duplicates are collapsed.
+raw HTML. Only explicit `http://` attributes are considered. A `link[href]` is considered only for
+the fetched-resource relations stylesheet, icon, preload, prefetch, and modulepreload; metadata
+relations such as profile, canonical, and alternate are ignored. Evidence URLs pass through the
+same credential, query, and fragment redaction used by public hop data; duplicates are collapsed.
+
+Phase 9.5 preserves certificate verification and classifies only evidence the boundary actually
+has: DNS resolution, explicit refusal, timeout, generic TLS handshake failure, untrusted/expired/
+hostname-mismatched certificates, premature termination, redirect-policy rejection, blocked
+destination, or a generic unknown network failure. Public codes and messages contain no raw
+exception, resolved address, socket detail, or sensitive target data. Ambiguous TLS failures are
+never guessed to be certificate failures.
+
+If TLS or another upstream failure prevents a landing response, response-dependent checks emit
+rule-linked operational errors. Scoring exposes those as NOT_EVALUATED and reduces coverage instead
+of misclassifying them as NOT_APPLICABLE. Confirmed transport findings remain separate. The 70%
+minimum and essential-rule policy therefore withhold low-confidence scores without weakening TLS.
 
 Server and X-Powered-By checks consume only sanitized final-response header observations. They do
 not fingerprint, contact external services, or turn banner versions into CVE claims. Generic

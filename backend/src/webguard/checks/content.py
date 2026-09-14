@@ -6,11 +6,14 @@ from html.parser import HTMLParser
 
 from webguard.checks.common import finding_result
 from webguard.domain.enums import FindingStatus, HttpScheme, Severity
-from webguard.scanner.checks import CheckMetadata, CheckResult
+from webguard.scanner.checks import CheckEvaluationError, CheckMetadata, CheckResult
 from webguard.scanner.context import ResponseObservation, ScanContext, redact_observed_url
 
 _MIXED_CONTENT_REFERENCE = (
     "https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content"
+)
+_FETCHED_LINK_RELATIONS = frozenset(
+    {"icon", "modulepreload", "prefetch", "preload", "stylesheet"}
 )
 
 
@@ -46,9 +49,12 @@ class _MixedContentParser(HTMLParser):
             attribute = "action"
             risk = "active"
         elif lowered_tag == "link":
-            attribute = "href"
             rel = {token.lower() for token in attributes.get("rel", "").split()}
-            risk = "active" if "stylesheet" in rel else "passive"
+            fetched_relations = rel & _FETCHED_LINK_RELATIONS
+            if not fetched_relations:
+                return
+            attribute = "href"
+            risk = "active" if fetched_relations & {"modulepreload", "stylesheet"} else "passive"
         elif lowered_tag in {"img", "audio", "video", "source"}:
             attribute = "src"
         if attribute is None:
@@ -74,15 +80,14 @@ class MixedContentCheck:
     def is_applicable(self, context: ScanContext) -> bool:
         response = context.landing_page
         return (
-            response is not None
-            and response.target.scheme is HttpScheme.HTTPS
-            and _is_html(response)
+            response is None
+            or (response.target.scheme is HttpScheme.HTTPS and _is_html(response))
         )
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = context.landing_page
         if response is None:
-            raise RuntimeError("Mixed-content check evaluated without a landing response")
+            raise CheckEvaluationError("The landing response was unavailable")
         parser = _MixedContentParser(response.target.request_url)
         parser.feed(response.body.text)
         parser.close()

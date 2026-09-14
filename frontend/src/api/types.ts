@@ -7,7 +7,7 @@ export type RuleEvaluationState =
   | "INFO"
   | "WARNING"
   | "FAIL"
-  | "ERROR"
+  | "NOT_EVALUATED"
   | "NOT_APPLICABLE";
 export type Grade = "A" | "B" | "C" | "D" | "F";
 export type ScanErrorKind = "TARGET" | "NETWORK" | "CHECK";
@@ -67,7 +67,7 @@ export interface RuleContribution {
 
 export interface RuleExclusion {
   rule_id: string;
-  state: "ERROR" | "NOT_APPLICABLE";
+  state: "NOT_EVALUATED" | "NOT_APPLICABLE";
   reason: string;
 }
 

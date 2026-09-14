@@ -16,6 +16,8 @@ from webguard.domain.enums import HttpScheme
 from webguard.domain.models import NormalizedTarget
 from webguard.security.config import NetworkLimits
 from webguard.security.errors import (
+    ConnectionRefused,
+    ConnectionTerminated,
     EndpointUnavailable,
     RequestTimedOut,
     ResponseTooLarge,
@@ -151,8 +153,8 @@ async def test_oversized_stream_is_stopped_and_closed(monkeypatch: pytest.Monkey
 @pytest.mark.parametrize(
     ("failure", "expected"),
     [
-        (httpcore.ReadError("read failed"), TransportError),
-        (httpcore.RemoteProtocolError("premature EOF"), TransportError),
+        (httpcore.ReadError("read failed"), ConnectionTerminated),
+        (httpcore.RemoteProtocolError("premature EOF"), ConnectionTerminated),
         (httpcore.ReadTimeout("read timed out"), RequestTimedOut),
     ],
 )
@@ -430,6 +432,25 @@ async def test_connect_failure_closes_raw_socket(
 
     with pytest.raises((httpcore.ConnectError, httpcore.ConnectTimeout)):
         await backend.connect_tcp("example.com", 443, timeout=1)
+    assert raw_socket.closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.security
+async def test_explicit_connection_refusal_is_classified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_socket = FakeSocket()
+    refusal = ConnectionRefusedError(10061, "internal endpoint detail")
+    monkeypatch.setattr(transport_module, "_create_tcp_socket", lambda _: raw_socket)
+    monkeypatch.setattr(
+        transport_module.asyncio, "get_running_loop", lambda: FakeConnectLoop(refusal)
+    )
+    backend = _PinnedNetworkBackend(destination())
+
+    with pytest.raises(ConnectionRefused, match="refused the connection") as caught:
+        await backend.connect_tcp("example.com", 443, timeout=1)
+    assert "internal endpoint detail" not in str(caught.value)
     assert raw_socket.closed
 
 

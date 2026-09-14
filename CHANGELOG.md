@@ -7,6 +7,13 @@ begin.
 
 ### Added
 
+- Phase 9.5 controlled A-H regression scenarios for reachable HTTPS, classified TLS failures,
+  HTTPS-unavailable/HTTP-reachable and total failures, mixed-content link semantics, genuine
+  insecure resources, and no-cookie applicability.
+- Safe public network classifications for DNS resolution, explicit refusal, timeout, TLS
+  handshake and certificate failures, premature termination, redirect-policy rejection, blocked
+  destinations, and unknown failures.
+
 - Python 3.12 `src`-layout project foundation.
 - Immutable Pydantic domain contracts.
 - Fail-closed URL, DNS, IP, redirect, destination pinning, resource limit, and redaction layers.
@@ -66,6 +73,14 @@ begin.
 - Local frontend development and production-build documentation in `docs/FRONTEND.md`.
 
 ### Fixed
+
+- Treat response-dependent rules blocked by an upstream landing failure as NOT_EVALUATED so they
+  reduce coverage and cause low-confidence score withholding instead of appearing N/A at 100%.
+- Restrict mixed-content `link[href]` analysis to fetched-resource relations; profile, canonical,
+  alternate, missing, and malformed relations no longer create false positives.
+- Group the exact three no-cookie N/A outcomes into one frontend context card, distinguish FAIL,
+  operational failure, N/A, NOT EVALUATED, and withheld scores, and suppress only duplicate scoring
+  prose.
 
 - Install Starlette's supported `httpx2` TestClient transport in development environments, removing
   its deprecated `httpx` fallback warning without changing API behavior.

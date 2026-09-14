@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
+import type { Finding, RuleContribution } from "../api/types";
 import { makeReport, makeResponse, makeScore } from "./fixtures";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -124,8 +125,9 @@ describe("WebGuard application flow", () => {
     }));
     await submit();
     expect(await screen.findByText(/completed only part/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Operational notes" })).toBeInTheDocument();
-    expect(screen.getByText(/not security findings/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Operational limitations" })).toBeInTheDocument();
+    expect(screen.getByText(/not FAIL security findings/i)).toBeInTheDocument();
+    expect(screen.getByText(/NOT EVALUATED/)).toBeInTheDocument();
   });
 
   it("uses a dedicated failed state without a fake score", async () => {
@@ -178,6 +180,61 @@ describe("WebGuard application flow", () => {
     fireEvent.click(within(card as HTMLElement).getByText("TLS certificate validation"));
     expect(card).toHaveAttribute("open");
     expect(within(card as HTMLElement).getByText("Evidence")).toBeInTheDocument();
+  });
+
+  it("groups three no-cookie rule outcomes into one not-applicable observation", async () => {
+    const report = makeReport();
+    const cookieFindings: Finding[] = ["cookies.secure", "cookies.http_only", "cookies.same_site"].map((id) => ({
+      id,
+      title: id,
+      category: "Cookie Security",
+      status: "INFO",
+      evaluation_state: "NOT_APPLICABLE",
+      severity: "INFO",
+      description: "No cookies were observed, so this attribute was not applicable.",
+      evidence: [{ label: "Observation", value: "No cookies were observed in the landing response or redirect chain.", source_url: "https://example.com/" }],
+      recommendation: "No action is suggested from this observation alone.",
+      references: [],
+    }));
+    const cookieContributions: RuleContribution[] = cookieFindings.map((finding) => ({
+      rule_id: finding.id,
+      category: finding.category,
+      state: "NOT_APPLICABLE",
+      configured_points: "3.0",
+      available_points: "0.0",
+      earned_points: "0.0",
+      deduction: "0.0",
+      credit_fraction: null,
+      reason: finding.description,
+      exclusion_reason: "Rule was not applicable.",
+    }));
+    report.findings = [...report.findings, ...cookieFindings];
+    report.score = makeScore({
+      rule_contributions: [...makeScore().rule_contributions, ...cookieContributions],
+    });
+    mockResponse(makeResponse(report));
+
+    await submit();
+
+    expect(await screen.findByRole("heading", { name: "Cookie Security" })).toBeInTheDocument();
+    expect(screen.getAllByText("NOT APPLICABLE")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "cookies.secure" })).not.toBeInTheDocument();
+  });
+
+  it("does not repeat an identical finding description in scoring impact", async () => {
+    const report = makeReport();
+    const description = report.findings[0]!.description;
+    report.score = makeScore({
+      rule_contributions: [{ ...makeScore().rule_contributions[0]!, reason: description }],
+    });
+    mockResponse(makeResponse(report));
+
+    await submit();
+    const card = (await screen.findByText("TLS certificate validation")).closest("details") as HTMLElement;
+    fireEvent.click(within(card).getByText("TLS certificate validation"));
+
+    expect(within(card).getAllByText(description)).toHaveLength(1);
+    expect(within(card).getByText("Scoring impact")).toBeInTheDocument();
   });
 
   it("renders malicious report strings as text and never creates injected DOM", async () => {

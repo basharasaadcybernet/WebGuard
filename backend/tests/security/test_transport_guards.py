@@ -13,6 +13,7 @@ from webguard.security.errors import (
     BlockedAddressError,
     TLSCertificateExpired,
     TLSCertificateUntrusted,
+    TLSHandshakeFailed,
     TLSHostnameMismatch,
 )
 from webguard.security.transport import (
@@ -120,6 +121,23 @@ async def test_tls_certificate_verification_failures_are_safely_classified(
         )
 
     assert caught.value.__cause__ is verification_error
+    assert writer.closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.security
+async def test_ambiguous_tls_failure_is_handshake_failure_not_certificate_guess() -> None:
+    tls_error = ssl.SSLError("ambiguous internal handshake detail")
+    writer = RecordingWriter(tls_error=tls_error)
+    stream = _PinnedNetworkStream(SlowReader(), writer, "example.com")  # type: ignore[arg-type]
+
+    with pytest.raises(TLSHandshakeFailed, match="TLS negotiation failed") as caught:
+        await stream.start_tls(
+            ssl.create_default_context(), server_hostname="example.com", timeout=1
+        )
+
+    assert "ambiguous internal handshake detail" not in str(caught.value)
+    assert caught.value.__cause__ is tls_error
     assert writer.closed
 
 

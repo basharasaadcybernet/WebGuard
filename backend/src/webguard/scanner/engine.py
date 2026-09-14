@@ -34,10 +34,17 @@ from webguard.security.budget import RequestBudget
 from webguard.security.client import SafeFetchResult, SafeHttpClient
 from webguard.security.config import NetworkLimits
 from webguard.security.errors import (
+    BlockedAddressError,
+    ConnectionRefused,
+    ConnectionTerminated,
+    DNSResolutionError,
     EndpointUnavailable,
+    RedirectPolicyError,
+    RequestTimedOut,
     SecurityBoundaryError,
     TLSCertificateExpired,
     TLSCertificateUntrusted,
+    TLSHandshakeFailed,
     TLSHostnameMismatch,
     URLPolicyError,
 )
@@ -294,6 +301,41 @@ class ScanEngine:
                 code="tls.certificate_untrusted",
                 message="The TLS certificate chain could not be trusted.",
             )
+        if isinstance(error, TLSHandshakeFailed):
+            return ProbeFailure(
+                code="tls.handshake_failed",
+                message="The TLS handshake could not be completed.",
+            )
+        if isinstance(error, DNSResolutionError):
+            return ProbeFailure(
+                code="network.dns_resolution_failed",
+                message="The hostname could not be resolved.",
+            )
+        if isinstance(error, ConnectionRefused):
+            return ProbeFailure(
+                code="network.connection_refused",
+                message="The validated endpoint refused the connection.",
+            )
+        if isinstance(error, RequestTimedOut):
+            return ProbeFailure(
+                code="network.connection_timeout",
+                message="The protected request exceeded its configured timeout.",
+            )
+        if isinstance(error, ConnectionTerminated):
+            return ProbeFailure(
+                code="network.connection_terminated",
+                message="The connection ended before a complete response was received.",
+            )
+        if isinstance(error, RedirectPolicyError):
+            return ProbeFailure(
+                code="network.redirect_rejected",
+                message="A redirect was rejected by the network safety policy.",
+            )
+        if isinstance(error, BlockedAddressError):
+            return ProbeFailure(
+                code="network.destination_blocked",
+                message="The destination was blocked by the network safety policy.",
+            )
         if isinstance(error, URLPolicyError):
             return ProbeFailure(
                 code="target.rejected",
@@ -301,8 +343,8 @@ class ScanEngine:
             )
         if isinstance(error, EndpointUnavailable):
             return ProbeFailure(
-                code="network.endpoint_unavailable",
-                message="The validated endpoint could not establish a connection.",
+                code="network.fetch_failed",
+                message="The validated endpoint could not establish a connection safely.",
             )
         if isinstance(error, SecurityBoundaryError):
             return ProbeFailure(

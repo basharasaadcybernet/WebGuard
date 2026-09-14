@@ -65,8 +65,9 @@ denominator. For example, when the landing chain sets no cookies, all three cook
 an explicit `NOT_APPLICABLE` evaluation state: the 15-point cookie category earns nothing, loses
 nothing, and has no category coverage value.
 
-ERROR is also excluded from score points, but it remains applicable and therefore reduces
-coverage. It is not converted to PASS, FAIL, or a deduction. Overall coverage is:
+NOT_EVALUATED is also excluded from score points, but it remains applicable and therefore reduces
+coverage. It represents an operational evidence failure, not a security PASS, FAIL, or deduction.
+Overall coverage is:
 
 ```text
 evaluated applicable rule weight / all applicable rule weight
@@ -85,12 +86,16 @@ inapplicable controls, and keeps failures visible through coverage.
 The numerical raw score, final score, and grade are all withheld when:
 
 - evaluated coverage is below the configured 70% minimum;
-- `transport.https_available`, `transport.tls_validity`, or `transport.tls_hostname` has an ERROR;
+- `transport.https_available`, `transport.tls_validity`, or `transport.tls_hostname` is
+  NOT_EVALUATED; or
   or
 - no rule produced an evaluated outcome.
 
-The essential-rule condition applies to operational ERROR only. A confirmed negative transport
-finding remains evaluated and is handled by its points and cap. Withheld output says:
+The essential-rule condition applies to operational NOT_EVALUATED only. A confirmed negative
+transport finding remains evaluated and is handled by its points and cap. A TLS failure that blocks
+the landing response leaves dependent header, cookie, content, and disclosure rules
+NOT_EVALUATED; those weights reduce coverage and normally cause score withholding. Withheld output
+says:
 
 > Scan incomplete — insufficient coverage for a reliable score.
 

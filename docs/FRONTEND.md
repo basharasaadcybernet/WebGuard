@@ -34,6 +34,15 @@ The API remains authoritative. Components display `score`, `raw_score`, `grade`,
 categories, findings, and completion state from `ReportDocument`; they never reproduce backend
 scoring logic. Severity filtering and disclosure state are local presentation state only.
 
+Phase 9.5 labels rule-linked operational limitations as NOT EVALUATED, labels genuine
+inapplicability as N/A, and retains FAIL solely for evaluated negative security findings. A
+withheld score remains unavailable rather than becoming zero. When a successful landing chain sets
+no cookies, the API still carries the three independent NOT_APPLICABLE cookie outcomes for
+auditability and scoring; the findings view groups that exact pattern into one concise Cookie
+Security context card. It does not turn absence into a PASS or change the backend score. Finding
+details omit a scoring reason only when it is textually identical to the visible description;
+distinct exclusion and cap reasons remain visible.
+
 ## Local development
 
 Python 3.12 and Node 22.12 or newer are required. From the repository root:
@@ -79,8 +88,9 @@ npm.cmd run build
 
 Tests use controlled fixtures and no live Internet. They cover submission and keyboard behavior,
 validation, loading and cancellation, completed/partial/failed results, 100/A, weak, capped and
-withheld scores, service errors, filtering, native disclosures, malicious values, reference-link
-safety, responsive rules, and reduced motion.
+withheld scores, not-evaluated limitations, grouped cookie N/A context, duplicate-text suppression,
+service errors, filtering, native disclosures, malicious values, reference-link safety, responsive
+rules, and reduced motion.
 
 An explicitly opt-in local integration check can exercise the running API and compare its returned
 score, grade, coverage, and finding count with the React-rendered result:

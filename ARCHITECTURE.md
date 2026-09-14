@@ -90,8 +90,9 @@ transport validation, and every hop consumes the same scan budget. A rule sees a
 failure category, never a client, resolver, transport, or arbitrary-URL fetch primitive.
 
 After checks finish, `ScoringEngine` reconciles the explicit registry with findings and rule-level
-errors. Missing outcomes and findings marked `NOT_APPLICABLE` become exclusions. Rule errors stay
-applicable but unevaluated, reducing coverage without earning points or creating deductions. The
+errors. Missing outcomes and findings marked `NOT_APPLICABLE` become exclusions. Rule errors are
+serialized as `NOT_EVALUATED`; they stay applicable, reducing coverage without earning points or
+creating deductions. The
 engine calculates rule contributions, category normalization, overall coverage, withholding,
 rounding, grades, and the three configured transport caps without reading clocks, networks, or
 mutable global state.
@@ -157,6 +158,14 @@ Results receive the API's `ReportDocument` as their sole authority. The frontend
 fractions for display but does not compute a score, grade, cap, finding, or completion state. An
 optional `expertRecommendations` component slot exists at the results boundary but Phase 9 does
 not populate it.
+
+Phase 9.5 hardens the observation boundary: a missing landing response no longer makes dependent
+rules inapplicable. Those checks execute far enough to emit safe rule-linked operational errors,
+which scoring records as NOT_EVALUATED. Typed boundary failures distinguish DNS, refusal, timeout,
+TLS handshake and certificate classes, premature termination, redirect rejection, blocked
+destinations, and an unknown fallback without exposing raw network details. TLS verification remains
+mandatory. The browser only presents these corrected backend semantics and groups the three exact
+no-cookie N/A outcomes for readability.
 
 ## Deferred components
 

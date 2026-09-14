@@ -326,12 +326,23 @@ denominator, while the breakdown records exactly what was excluded.
 
 ## Why errors reduce confidence
 
-An ERROR means WebGuard tried to evaluate an applicable rule but lacked reliable evidence. It is
-not a security failure, yet it cannot earn credit. Errors are excluded from score arithmetic and
+NOT_EVALUATED means WebGuard tried to evaluate an applicable rule but lacked reliable evidence. It
+is not a security failure, yet it cannot earn credit. These rules are excluded from score arithmetic and
 remain in the applicable coverage denominator. The resulting lower coverage tells a reader that
 the visible score rests on less evidence. Below 70% coverage, WebGuard withholds the number and
 grade entirely. Essential transport-rule errors also cause withholding even if total coverage is
 otherwise high.
+
+The distinction must be made from observation provenance, not from an empty value. A successful
+landing response with no Set-Cookie fields makes cookie-attribute controls NOT_APPLICABLE. A missing
+landing response caused by TLS failure makes the same controls NOT_EVALUATED because WebGuard does
+not know whether the unseen response would have set cookies. The same principle applies to headers,
+HTML content, and response disclosure checks.
+
+Transport failures should be typed only where evidence is reliable. An explicit certificate
+verification reason can support expired, hostname-mismatch, or untrusted classifications; an
+otherwise ambiguous SSL error supports only TLS handshake failure. Keeping a generic fallback is
+more accurate than inventing precision.
 
 ## What coverage means
 

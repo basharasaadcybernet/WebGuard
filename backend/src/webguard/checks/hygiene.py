@@ -30,7 +30,7 @@ _RFC3339 = re.compile(
 def _landing(context: ScanContext) -> ResponseObservation:
     response = context.landing_page
     if response is None:
-        raise RuntimeError("Disclosure check evaluated without a landing response")
+        raise CheckEvaluationError("The landing response was unavailable")
     return response
 
 
@@ -62,7 +62,7 @@ class SecurityTxtCheck:
         self._config = config
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         probe = context.auxiliary_probe("security_txt")
@@ -220,7 +220,7 @@ class ServerDisclosureCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)
@@ -274,7 +274,7 @@ class XPoweredByDisclosureCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return context.landing_page is not None
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         response = _landing(context)

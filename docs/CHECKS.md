@@ -2,9 +2,30 @@
 
 Phase 5B completes nineteen initial passive checks. Rules inspect immutable observations collected through
 `SafeHttpClient`; rule modules cannot perform network requests. PASS means the limited condition
-described below was observed, not that the site is vulnerability-free. Inapplicable rules emit no
-finding. An unavailable required observation becomes an operational check error rather than a
-security failure.
+described below was observed, not that the site is vulnerability-free. `NOT_APPLICABLE` means the
+control genuinely does not apply to an observation that was successfully obtained. A required
+observation that could not be obtained is `NOT_EVALUATED`: it becomes a rule-linked operational
+error, remains in the coverage denominator, and is never presented as a security PASS or FAIL.
+
+## Controlled accuracy scenarios
+
+The deterministic Phase 9.5 fixture matrix defines the expected public behavior below. “Errors”
+includes the one landing network error plus rule-linked operational errors; public websites are not
+used as authoritative tests.
+
+| Fixture | ScanStatus | Key findings | Errors | Coverage | Score | Applicability |
+| --- | --- | --- | ---: | ---: | --- | --- |
+| A reachable HTTPS | COMPLETED | 19 evaluated outcomes | 0 | 100% | 100/A | all evaluated |
+| B untrusted certificate | FAILED | HTTPS availability FAIL, HTTP redirect PASS, TLS trust FAIL | 17 | 20% | withheld | remaining 16 rules NOT_EVALUATED |
+| C hostname mismatch | FAILED | HTTPS availability FAIL, HTTP redirect PASS, TLS hostname FAIL | 17 | 18% | withheld | remaining 16 rules NOT_EVALUATED |
+| D HTTPS refused, HTTP reachable | FAILED | HTTPS availability FAIL, HTTP redirect FAIL | 18 | 14% | withheld | remaining 17 rules NOT_EVALUATED |
+| E total DNS failure | FAILED | HTTPS availability FAIL | 19 | 10% | withheld | remaining 18 rules NOT_EVALUATED |
+| F HTTP `rel=profile` | COMPLETED | mixed content PASS | 0 | 100% | available | metadata link ignored; no-cookie rules N/A in fixture |
+| G HTTP stylesheet/script/image | COMPLETED | mixed content WARNING/MEDIUM | 0 | 100% | available | all rules evaluated |
+| H no cookies | COMPLETED | three cookie INFO/N/A outcomes | 0 | 100% | available | cookie weights excluded, never passed |
+
+Additional TLS variants assert expired certificate (17% coverage; expiry FAIL; score withheld) and
+ambiguous TLS handshake failure (14% coverage; no guessed certificate finding; score withheld).
 
 ## Transport security
 
@@ -13,8 +34,9 @@ security failure.
 - **Purpose:** Determine whether a verified HTTPS response is available.
 - **Checks:** A direct or actually fetched HTTPS response, never a redirect Location alone.
 - **PASS:** A protected HTTPS request completed.
-- **WARNING/FAIL:** FAIL/MEDIUM for a confirmed unavailable endpoint or classified TLS certificate
-  failure. Timeouts and indeterminate network failures are operational check errors.
+- **WARNING/FAIL:** FAIL/MEDIUM when classified DNS, refusal, timeout, termination, TLS handshake,
+  or certificate evidence establishes that a verified HTTPS response was unavailable. Ambiguous
+  network failures and safety-policy rejections remain operational errors.
 - **Limitations:** Does not evaluate protocol versions, cipher suites, or application content.
 - **References:** [MDN HTTPS](https://developer.mozilla.org/en-US/docs/Glossary/HTTPS).
 
@@ -173,15 +195,18 @@ with affected/total counts. This avoids one finding per cookie while retaining a
 ### `content.mixed_content`
 
 - **Purpose:** Find explicit plaintext resource references in the final HTTPS landing HTML.
-- **Checks:** `script`/`iframe` sources, stylesheet links, form actions, and practical image/media
-  references using literal `http://` URLs.
+- **Checks:** `script`/`iframe` sources, form actions, image/media sources, and `link[href]` only
+  when `rel` contains `stylesheet`, `icon`, `preload`, `prefetch`, or `modulepreload`, using literal
+  `http://` URLs.
 - **PASS:** No explicit insecure reference is present in the bounded static HTML.
-- **WARNING/FAIL:** Script, iframe, stylesheet, or form references are WARNING/MEDIUM; only
-  image/media/other link references are WARNING/LOW.
+- **WARNING/FAIL:** Script, iframe, stylesheet, modulepreload, or form references are
+  WARNING/MEDIUM; image/media/icon/preload/prefetch references are WARNING/LOW.
 - **Limitations:** Uses Python's non-executing HTML parser. It does not execute JavaScript, expand
   CSS, inspect `srcset`, download resources, or reproduce browser mixed-content decisions. Relative,
-  protocol-relative, data, invalid, and dynamically generated URLs are not reported. Duplicate URLs
-  are grouped, and displayed absolute URLs have credentials, fragments, and query values removed.
+  protocol-relative, data, invalid, and dynamically generated URLs are not reported. Metadata links
+  such as `profile`, `canonical`, and `alternate`, missing `rel`, and unrecognized/malformed `rel`
+  values are not treated as fetched resources. Duplicate URLs are grouped, and displayed absolute
+  URLs have credentials, fragments, and query values removed.
 - **References:** [MDN mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content).
 
 ## Disclosure and operational hygiene

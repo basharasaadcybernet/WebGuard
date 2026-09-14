@@ -41,6 +41,18 @@ class EndpointUnavailable(SecurityBoundaryError):
     """The validated destination could not establish a connection."""
 
 
+class ConnectionRefused(SecurityBoundaryError):
+    """The validated destination explicitly refused the connection."""
+
+
+class ConnectionTerminated(SecurityBoundaryError):
+    """The peer reset or prematurely terminated the connection."""
+
+
+class TLSHandshakeFailed(SecurityBoundaryError):
+    """TLS negotiation failed without reliable certificate-specific evidence."""
+
+
 class TLSCertificateUntrusted(SecurityBoundaryError):
     """TLS certificate chain validation did not establish trust."""
 

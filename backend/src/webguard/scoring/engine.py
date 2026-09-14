@@ -69,7 +69,7 @@ class ScoringEngine:
             finding = finding_map.get(policy.id)
             error = error_map.get(policy.id)
             if error is not None:
-                state = RuleEvaluationState.ERROR
+                state = RuleEvaluationState.NOT_EVALUATED
                 reason = error.message
                 exclusion_reason = "Rule evaluation failed; its points were excluded."
                 contribution = RuleContribution(
@@ -86,7 +86,7 @@ class ScoringEngine:
                 exclusions.append(
                     RuleExclusion(
                         rule_id=policy.id,
-                        state=RuleEvaluationState.ERROR,
+                        state=RuleEvaluationState.NOT_EVALUATED,
                         reason=exclusion_reason,
                     )
                 )
@@ -194,7 +194,7 @@ class ScoringEngine:
         essential_errors = [
             rule_id
             for rule_id in self.config.essential_error_rules
-            if states[rule_id] is RuleEvaluationState.ERROR
+            if states[rule_id] is RuleEvaluationState.NOT_EVALUATED
         ]
         if essential_errors:
             withholding_reasons.append(

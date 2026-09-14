@@ -17,6 +17,18 @@ _TLS_REFERENCE = (
 )
 _HTTPS_REFERENCE = ("https://developer.mozilla.org/en-US/docs/Glossary/HTTPS",)
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+_HTTPS_UNAVAILABLE_FAILURES = frozenset(
+    {
+        "network.connection_refused",
+        "network.connection_timeout",
+        "network.connection_terminated",
+        "network.dns_resolution_failed",
+        "tls.certificate_expired",
+        "tls.certificate_untrusted",
+        "tls.handshake_failed",
+        "tls.hostname_mismatch",
+    }
+)
 
 
 def _probe_source(probe: ProbeObservation) -> str:
@@ -63,12 +75,7 @@ class HTTPSAvailabilityCheck:
                 recommendation="Continue serving the site over verified HTTPS.",
             )
         failure = probe.failure
-        if failure is None or failure.code not in {
-            "network.endpoint_unavailable",
-            "tls.certificate_expired",
-            "tls.certificate_untrusted",
-            "tls.hostname_mismatch",
-        }:
+        if failure is None or failure.code not in _HTTPS_UNAVAILABLE_FAILURES:
             raise CheckEvaluationError("HTTPS availability could not be determined")
         return finding_result(
             self.metadata,
@@ -147,10 +154,7 @@ class TLSValidityCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        failure = context.https_probe.failure
-        return _verified_https_response(context.https_probe) is not None or (
-            failure is not None and failure.code == "tls.certificate_untrusted"
-        )
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         probe = context.https_probe
@@ -163,6 +167,8 @@ class TLSValidityCheck:
                 source_url=_probe_source(probe),
                 recommendation="Continue using a certificate chain trusted by major clients.",
             )
+        if probe.failure is None or probe.failure.code != "tls.certificate_untrusted":
+            raise CheckEvaluationError("TLS certificate trust could not be evaluated")
         return finding_result(
             self.metadata,
             status=FindingStatus.FAIL,
@@ -187,10 +193,7 @@ class TLSHostnameCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        failure = context.https_probe.failure
-        return _verified_https_response(context.https_probe) is not None or (
-            failure is not None and failure.code == "tls.hostname_mismatch"
-        )
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         probe = context.https_probe
@@ -203,6 +206,8 @@ class TLSHostnameCheck:
                 source_url=_probe_source(probe),
                 recommendation="Keep certificate names aligned with every served HTTPS hostname.",
             )
+        if probe.failure is None or probe.failure.code != "tls.hostname_mismatch":
+            raise CheckEvaluationError("TLS hostname validation could not be evaluated")
         return finding_result(
             self.metadata,
             status=FindingStatus.FAIL,
@@ -226,14 +231,11 @@ class TLSExpiryCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        failure = context.https_probe.failure
-        return _verified_https_response(context.https_probe) is not None or (
-            failure is not None and failure.code == "tls.certificate_expired"
-        )
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
         probe = context.https_probe
-        if not probe.succeeded:
+        if probe.failure is not None and probe.failure.code == "tls.certificate_expired":
             return finding_result(
                 self.metadata,
                 status=FindingStatus.FAIL,
@@ -243,6 +245,8 @@ class TLSExpiryCheck:
                 source_url=_probe_source(probe),
                 recommendation="Renew and deploy the certificate, including its required chain.",
             )
+        if not probe.succeeded:
+            raise CheckEvaluationError("TLS certificate expiration could not be evaluated")
         https_response = _verified_https_response(probe)
         assert https_response is not None
         not_after = https_response.network.certificate_not_after
@@ -293,12 +297,14 @@ class HTTPSDowngradeCheck:
     )
 
     def is_applicable(self, context: ScanContext) -> bool:
-        return any(
-            response.target.scheme is HttpScheme.HTTPS
-            for response in (*context.landing.responses, *context.https_probe.responses)
-        )
+        return True
 
     def evaluate(self, context: ScanContext) -> CheckResult:
+        if not any(
+            response.target.scheme is HttpScheme.HTTPS
+            for response in (*context.landing.responses, *context.https_probe.responses)
+        ):
+            raise CheckEvaluationError("HTTPS redirect observations were unavailable")
         if context.observed_https_downgrade:
             return finding_result(
                 self.metadata,
