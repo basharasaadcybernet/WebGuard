@@ -453,3 +453,38 @@ targets, results, request IDs, reports, client history, or accounts. A persisten
 store records in a database so they survive process restarts and can be retrieved later. That is a
 different product boundary and remains deferred; temporary bounded counters in one process are
 operational protection, not scan history.
+
+## React components and frontend state
+
+A React component is a reusable function that describes one part of the interface from its input
+properties and current state. WebGuard keeps large responsibilities separate: the scan form owns
+input feedback, the scan hook owns request state, result components present the public report, and
+the API client owns HTTP. This is enough for v0.1 without a global state library.
+
+The frontend runs in the visitor's browser; the backend runs the trusted scanner on the server.
+Their REST boundary is JSON sent to `POST /api/v1/scans`. TypeScript checks that frontend code uses
+the documented field names and null cases while it is being developed, but remote JSON is still
+runtime input, so the client also validates its structure before rendering.
+
+Application state makes the user journey explicit: `idle` shows the initial scope, `scanning`
+shows truthful progress and permits cancellation, `success` renders the report, and `error` shows
+fixed recovery guidance. A `PARTIAL` or `FAILED` report is successful API data with a different
+scanner completion state, not a network error.
+
+Responsive design changes composition at narrower widths so input, score, filters, findings, long
+URLs, and evidence remain usable. Accessibility starts with semantic HTML: a real form and label,
+buttons, headings, status announcements, focus indicators, textual severity, and native
+`details`/`summary`. Reduced-motion CSS removes nonessential movement without removing content.
+
+## XSS, untrusted reports, and scoring authority
+
+Cross-site scripting occurs when attacker-controlled text is interpreted as browser markup or
+code. A scanned site can influence headers, evidence, and other strings that WebGuard reports, so
+data remains untrusted even after it passed through the backend. React text rendering escapes it;
+the frontend never inserts raw HTML, and it validates schemes before making external reference
+links. Regression fixtures use script and event-handler strings to preserve this boundary.
+
+The backend remains the sole scoring authority because it owns versioned weights, applicability,
+coverage, caps, and grade rules. React displays final score, raw score, grade, coverage, and reasons
+from the response. Duplicating that logic in the browser would create drift and could misleadingly
+turn unavailable evidence into a score.

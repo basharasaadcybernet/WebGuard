@@ -184,6 +184,24 @@ requires an HTTPS reverse proxy, external rate limiting, egress restrictions, co
 sizing, resource limits, safe structured-log handling, and explicit secret/environment management.
 Process-local rate limits are independent per worker and are not a distributed quota.
 
+## Phase 9 browser boundary
+
+The React frontend treats every report string as attacker-controlled, even though WebGuard
+generated the report from sanitized backend models. It uses normal React text nodes, never
+`dangerouslySetInnerHTML`, and neither evaluates target content nor creates navigation targets from
+the scanned website. Technical references are reparsed in the browser and are rendered only when
+they use HTTP or HTTPS without embedded credentials; external links use `noopener noreferrer`.
+
+The browser sends only `{ target }` to the fixed scan endpoint. It does not expose controls for
+headers, methods, redirects, budgets, TLS policy, ports, or scoring. The TypeScript contract mirrors
+the public API model, and a runtime structural guard rejects malformed successful responses before
+they reach result components. Error pages use fixed public copy rather than server error messages.
+
+Only `VITE_` values are browser-visible. `VITE_WEBGUARD_API_URL` is a public endpoint location, not
+a secret, and `VITE_CYBERNET_CONTACT_URL` is an optional public contact destination. Secrets must
+never be placed in frontend environment variables or the built bundle. Phase 9 stores no scan
+history in browser storage and adds no analytics, third-party scripts, or persistence.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule

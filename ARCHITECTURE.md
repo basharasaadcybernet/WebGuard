@@ -135,10 +135,33 @@ must configure both allowed origins and public Host names. The application store
 result, client address, or request ID. The rate limiter retains only keyed hashes temporarily in
 bounded process memory.
 
+Phase 9 adds an independent browser adapter:
+
+```text
+React App -> useScan state machine -> typed API client -> POST /api/v1/scans
+    |                                      |
+    +-> results components                 +-> runtime response validation
+          |-- backend score/grade/coverage (display only)
+          |-- severity and category summaries
+          |-- client-only finding filters and native details
+          `-- limitations and configurable contact CTA
+```
+
+The state machine is `idle -> scanning -> success | error`, with an AbortController for explicit
+cancellation and a bounded client timeout. Components never call `fetch` directly. The API client
+accepts only the configured base URL plus the fixed scan path and validates the public response
+shape before rendering it. Scanned data remains untrusted text; React escaping, scheme-validated
+reference links, and the absence of raw HTML insertion form the browser security boundary.
+
+Results receive the API's `ReportDocument` as their sole authority. The frontend formats decimal
+fractions for display but does not compute a score, grade, cap, finding, or completion state. An
+optional `expertRecommendations` component slot exists at the results boundary but Phase 9 does
+not populate it.
+
 ## Deferred components
 
-Persistence, history, monitoring, PDF output, HTML-over-API rendering, and the frontend remain
-deferred.
+Persistence, history, monitoring, PDF output, HTML-over-API rendering, expert recommendations,
+and public deployment remain deferred.
 Active exploitation, fuzzing, enumeration, and port scanning are outside product scope.
 
 ## Current limitations

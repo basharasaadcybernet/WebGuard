@@ -27,6 +27,7 @@ webguard-api = "webguard.api.cli:main"
 
 [project.optional-dependencies]
 dev = [
+  "httpx2>=2.12,<3",
   "mypy>=1.11,<2",
   "pytest>=8.2,<9",
   "pytest-asyncio>=0.24,<1",

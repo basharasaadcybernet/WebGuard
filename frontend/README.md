@@ -1,5 +1,4 @@
-# Frontend placeholder
+# CyberNet WebGuard frontend
 
-The frontend is intentionally not initialized in milestones 1–3. Its future React, TypeScript,
-and Vite implementation must follow `docs/DESIGN_DIRECTION.md` after real CyberNet brand assets
-are supplied.
+The Phase 9 React application lives in this directory. See `../docs/FRONTEND.md` for architecture,
+environment configuration, testing, and local development instructions.

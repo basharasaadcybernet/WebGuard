@@ -4,7 +4,7 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1-8:
+This repository currently contains milestones 1-9:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters;
@@ -13,7 +13,8 @@ This repository currently contains milestones 1-8:
 - nineteen passive transport, header, cookie, content, and disclosure checks; and
 - versioned, deterministic, coverage-aware scoring with per-rule contributions; and
 - a Typer/Rich CLI plus versioned JSON and self-contained HTML reports; and
-- a minimal FastAPI REST adapter with bounded admission, rate, request, and execution controls.
+- a minimal FastAPI REST adapter with bounded admission, rate, request, and execution controls; and
+- a responsive CyberNet-branded React/TypeScript application for interactive local scans.
 
 The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
 expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
@@ -25,8 +26,9 @@ X-Powered-By disclosure observations.
 The default scanner produces a transparent score breakdown when at least 70% of applicable rule
 weight is evaluated and essential transport evidence is available. Phase 7 presents that same
 public result through terminal, JSON, and offline HTML output. Phase 8 exposes the same immutable
-report contract through a stateless `/api/v1/` API; it adds no scanner or scoring logic. No
-frontend, database, persistence, history, monitoring, or active scanner is implemented.
+report contract through a stateless `/api/v1/` API; it adds no scanner or scoring logic. Phase 9
+adds a production-build-ready frontend that displays this contract without recalculating it. No
+database, persistence, history, monitoring, public deployment, or active scanner is implemented.
 
 ## Development setup
 
@@ -56,6 +58,23 @@ The API development server binds to `127.0.0.1:8000` by default. Its three endpo
 `GET /api/v1/health`, `GET /api/v1/version`, and `POST /api/v1/scans`. See `docs/API.md` for the
 request/response contract, environment settings, status policy, and production deployment
 requirements. FastAPI docs are available at `/docs` unless explicitly disabled.
+
+Run the local product in two terminals:
+
+```powershell
+# Terminal 1, from the repository root
+.\.venv\Scripts\webguard-api.exe
+
+# Terminal 2
+cd frontend
+npm.cmd install
+npm.cmd run dev
+```
+
+The API listens on `http://127.0.0.1:8000` and Vite on `http://127.0.0.1:5173`. Vite proxies
+same-origin `/api` requests during development. Set `VITE_WEBGUARD_API_URL` at build time only
+when the production frontend will call a different API origin. Frontend commands are documented
+in `docs/FRONTEND.md`; a production bundle is created with `npm.cmd run build`.
 
 JSON sent to stdout contains JSON only. WebGuard refuses to overwrite report files, and report
 parent directories must already exist. See `docs/CLI.md` for exit codes and output behavior, and

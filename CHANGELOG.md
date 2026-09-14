@@ -56,8 +56,19 @@ begin.
   client-disconnect cancellation, request-body limits, Host validation, and allowlisted CORS.
 - Controlled API tests for completed/partial/failed scans, withheld/capped scores, findings,
   privacy, SSRF rejection, malformed requests, overload, rate, cancellation, CORS, and architecture.
+- Phase 9 CyberNet-branded React, TypeScript, and Vite frontend with responsive landing, truthful
+  scan progress, completed/partial/failed result states, score and cap presentation, category and
+  severity summaries, expandable findings, client-side severity filters, limitations, and an
+  optional configurable professional-contact CTA.
+- A centralized typed API client with cancellation, timeout, safe error mapping, runtime response
+  validation, and controlled frontend fixtures covering success, failures, scoring edge cases,
+  malicious report strings, safe references, responsive rules, and reduced motion.
+- Local frontend development and production-build documentation in `docs/FRONTEND.md`.
 
 ### Fixed
+
+- Install Starlette's supported `httpx2` TestClient transport in development environments, removing
+  its deprecated `httpx` fallback warning without changing API behavior.
 
 - Compare effective HTTP/HTTPS ports in the pinned HTTP adapter so normal URLs using implicit ports
   80 and 443 are accepted without weakening the explicit destination match.
@@ -94,3 +105,5 @@ begin.
   only a target string, and reuse `ScanEngine` plus `ReportBuilder` without score/check duplication.
 - Ignore untrusted forwarding headers for rate/security decisions, disable proxy-header trust in
   the development entry point, forbid wildcard CORS/Host configuration, and sanitize API failures.
+- Render all API report values as untrusted React text, allow only credential-free HTTP(S)
+  references, expose no client-side scoring controls, and reject malformed successful payloads.
