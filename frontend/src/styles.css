@@ -616,8 +616,7 @@ a.primary-button:hover {
 }
 
 .scan-progress,
-.error-state,
-.failed-result {
+.error-state {
   min-height: 380px;
   margin: 1rem 0 var(--space-8);
   padding: clamp(1.6rem, 6vw, 4rem);
@@ -637,8 +636,7 @@ a.primary-button:hover {
 }
 
 .scan-progress h2,
-.error-state h2,
-.failed-result h2 {
+.error-state h2 {
   margin-bottom: 0.75rem;
   font-size: clamp(1.7rem, 4vw, 2.65rem);
   letter-spacing: -0.04em;
@@ -788,7 +786,8 @@ a.primary-button:hover {
   background: var(--warning);
 }
 
-.partial-notice {
+.partial-notice,
+.failed-assessment-notice {
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
@@ -800,7 +799,8 @@ a.primary-button:hover {
   background: var(--info-soft);
 }
 
-.partial-notice > svg {
+.partial-notice > svg,
+.failed-assessment-notice > svg {
   margin-top: 0.15rem;
 }
 
@@ -811,6 +811,28 @@ a.primary-button:hover {
 .partial-notice p {
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
+}
+
+.failed-assessment-notice {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.failed-assessment-notice h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.failed-assessment-notice p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.state-failed span {
+  background: var(--danger);
 }
 
 .overview-grid {
@@ -1208,6 +1230,25 @@ a.primary-button:hover {
   color: var(--text-muted);
 }
 
+.operational-errors .unevaluated-summary {
+  grid-template-columns: minmax(180px, auto) 1fr minmax(170px, auto);
+}
+
+.unevaluated-summary details {
+  color: var(--text-secondary);
+}
+
+.unevaluated-summary summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.unevaluated-summary details div {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
 .findings-section {
   padding: var(--space-8) 0 var(--space-6);
 }
@@ -1580,20 +1621,6 @@ a.primary-button:hover {
 .professional-cta p:not(.eyebrow) {
   margin: 0;
   font-size: 0.84rem;
-}
-
-.failed-result {
-  flex-direction: column;
-  text-align: center;
-}
-
-.failed-result .operational-errors {
-  width: min(100%, 800px);
-  text-align: left;
-}
-
-.failed-result .permanent-disclaimer {
-  max-width: 760px;
 }
 
 .site-footer {

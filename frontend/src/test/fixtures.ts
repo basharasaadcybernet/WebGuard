@@ -1,4 +1,11 @@
-import type { ReportDocument, ScanApiResponse, ScoreBreakdown } from "../api/types";
+import type {
+  CategoryScore,
+  Finding,
+  ReportDocument,
+  RuleContribution,
+  ScanApiResponse,
+  ScoreBreakdown,
+} from "../api/types";
 
 export function makeScore(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
   return {
@@ -155,4 +162,192 @@ export function makeResponse(reportOverrides: Partial<ReportDocument> = {}): Sca
     request_id: "22222222-2222-4222-8222-222222222222",
     report: makeReport(reportOverrides),
   };
+}
+
+const failedRuleWeights: Record<string, string> = {
+  "transport.https_available": "10",
+  "transport.http_redirect": "4",
+  "transport.tls_validity": "6",
+  "transport.tls_hostname": "4",
+  "transport.tls_expiry": "3",
+  "transport.https_downgrade": "3",
+  "headers.strict_transport_security": "7",
+  "headers.content_security_policy": "10",
+  "headers.x_content_type_options": "5",
+  "headers.referrer_policy": "4",
+  "headers.permissions_policy": "2",
+  "headers.clickjacking_protection": "7",
+  "cookies.secure": "7",
+  "cookies.http_only": "3",
+  "cookies.same_site": "5",
+  "content.mixed_content": "10",
+  "hygiene.security_txt": "4",
+  "hygiene.server_disclosure": "3",
+  "hygiene.x_powered_by": "3",
+};
+
+function categoryForRule(ruleId: string): string {
+  const prefix = ruleId.split(".")[0];
+  return {
+    transport: "Transport Security",
+    headers: "Security Headers",
+    cookies: "Cookie Security",
+    content: "Content Protection",
+    hygiene: "Information Disclosure / Hygiene",
+  }[prefix ?? ""] ?? "Unknown";
+}
+
+const failedFindings: Finding[] = [
+  {
+    id: "transport.http_redirect",
+    title: "HTTP to HTTPS redirect",
+    category: "Transport Security",
+    status: "FAIL",
+    evaluation_state: "APPLICABLE",
+    severity: "MEDIUM",
+    description: "The tested HTTP endpoint did not direct clients to HTTPS.",
+    evidence: [{ label: "Observation", value: "HTTP remained available.", source_url: "http://forsa.sy/" }],
+    recommendation: "Redirect HTTP requests directly to HTTPS.",
+    references: [],
+  },
+  {
+    id: "transport.https_available",
+    title: "HTTPS availability",
+    category: "Transport Security",
+    status: "FAIL",
+    evaluation_state: "APPLICABLE",
+    severity: "MEDIUM",
+    description: "WebGuard could not obtain a verified HTTPS response.",
+    evidence: [{ label: "Observation", value: "No verified HTTPS response was available.", source_url: "https://forsa.sy/" }],
+    recommendation: "Provide a reachable verified HTTPS endpoint.",
+    references: [],
+  },
+];
+
+function failedCategories(evaluated: string): CategoryScore[] {
+  return [
+    {
+      category: "Transport Security",
+      configured_weight: "30",
+      applicable_points: "30",
+      evaluated_points: evaluated,
+      available_points: evaluated,
+      earned_points: "0",
+      deductions: evaluated,
+      normalized_score: "0",
+      earned_normalized_contribution: "0",
+      coverage: evaluated === "14" ? "0.467" : "0.667",
+    },
+    ...["Security Headers", "Cookie Security", "Content Protection", "Information Disclosure / Hygiene"].map((category) => ({
+      category,
+      configured_weight: category === "Security Headers" ? "35" : category === "Cookie Security" ? "15" : "10",
+      applicable_points: category === "Security Headers" ? "35" : category === "Cookie Security" ? "15" : "10",
+      evaluated_points: "0",
+      available_points: "0",
+      earned_points: "0",
+      deductions: "0",
+      normalized_score: null,
+      earned_normalized_contribution: "0",
+      coverage: "0",
+    })),
+  ];
+}
+
+export function makeFailedAssessmentReport(
+  mode: "timeout" | "untrusted" = "timeout",
+): ReportDocument {
+  const tlsTrustFinding: Finding = {
+    id: "transport.tls_validity",
+    title: "TLS certificate trust",
+    category: "Transport Security",
+    status: "FAIL",
+    evaluation_state: "APPLICABLE",
+    severity: "HIGH",
+    description: "The TLS certificate chain was not trusted.",
+    evidence: [{ label: "Observation", value: "Certificate trust validation failed.", source_url: "https://forsa.sy/" }],
+    recommendation: "Install a complete trusted certificate chain.",
+    references: [],
+  };
+  const findings = mode === "untrusted" ? [...failedFindings, tlsTrustFinding] : failedFindings;
+  const evaluatedIds = new Set(findings.map((finding) => finding.id));
+  const contributions: RuleContribution[] = Object.entries(failedRuleWeights).map(
+    ([ruleId, configuredPoints]) => evaluatedIds.has(ruleId)
+      ? {
+          rule_id: ruleId,
+          category: categoryForRule(ruleId),
+          state: "FAIL",
+          configured_points: configuredPoints,
+          available_points: configuredPoints,
+          earned_points: "0",
+          deduction: configuredPoints,
+          credit_fraction: "0",
+          reason: findings.find((finding) => finding.id === ruleId)!.description,
+          exclusion_reason: null,
+        }
+      : {
+          rule_id: ruleId,
+          category: categoryForRule(ruleId),
+          state: "NOT_EVALUATED",
+          configured_points: configuredPoints,
+          available_points: "0",
+          earned_points: "0",
+          deduction: "0",
+          credit_fraction: null,
+          reason: "The check could not evaluate the available observations.",
+          exclusion_reason: "Rule evaluation failed; its points were excluded.",
+        },
+  );
+  const unevaluated = contributions.filter((item) => item.state === "NOT_EVALUATED");
+  const evaluated = mode === "untrusted" ? "20" : "14";
+  const coverage = mode === "untrusted" ? "0.200" : "0.140";
+  const networkCode = mode === "untrusted"
+    ? "tls.certificate_untrusted"
+    : "network.connection_timeout";
+  const networkMessage = mode === "untrusted"
+    ? "The TLS certificate chain could not be trusted."
+    : "The protected request exceeded its configured timeout.";
+
+  return makeReport({
+    target: { scheme: "https", hostname: "forsa.sy", port: 443, path: "/", display_url: "https://forsa.sy/" },
+    completion_state: "FAILED",
+    scan_metadata: { ...makeReport().scan_metadata, state: "FAILED" },
+    score: makeScore({
+      raw_score: null,
+      score: null,
+      grade: null,
+      applicable_points: "100",
+      evaluated_points: evaluated,
+      available_points: evaluated,
+      earned_points: "0",
+      deductions: evaluated,
+      coverage,
+      categories: failedCategories(evaluated),
+      rule_contributions: contributions,
+      exclusions: unevaluated.map((item) => ({
+        rule_id: item.rule_id,
+        state: "NOT_EVALUATED",
+        reason: item.exclusion_reason!,
+      })),
+      withholding_reasons: [
+        `Evaluated coverage ${coverage} is below the configured minimum 0.700.`,
+      ],
+      explanation: "Scan incomplete — insufficient coverage for a reliable score.",
+    }),
+    severity_summary: [
+      { severity: "HIGH", count: mode === "untrusted" ? 1 : 0 },
+      { severity: "MEDIUM", count: 2 },
+      { severity: "LOW", count: 0 },
+      { severity: "INFO", count: 0 },
+    ],
+    findings,
+    operational_errors: [
+      { kind: "NETWORK", code: networkCode, message: networkMessage, rule_id: null },
+      ...unevaluated.map((item) => ({
+        kind: "CHECK" as const,
+        code: "check.evaluation_failed",
+        message: "The check could not evaluate the available observations.",
+        rule_id: item.rule_id,
+      })),
+    ],
+  });
 }

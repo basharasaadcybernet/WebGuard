@@ -74,6 +74,15 @@ begin.
 
 ### Fixed
 
+- Phase 9.6 renders valid FAILED `ReportDocument` responses as incomplete assessments with their
+  target, coverage, withheld-score reasons, established findings, and operational limitations
+  instead of discarding report data or presenting an internal application error.
+- Summarize repeated dependent `check.evaluation_failed` entries while preserving safe transport
+  errors and optional affected-rule details; retain distinct PARTIAL, HTTP 500, rate, busy,
+  timeout, and API-unavailable presentation.
+- Remove an accidental empty root `package-lock.json`; `frontend/package-lock.json` remains the
+  authoritative npm lockfile because `frontend/` is the only npm project.
+
 - Treat response-dependent rules blocked by an upstream landing failure as NOT_EVALUATED so they
   reduce coverage and cause low-confidence score withholding instead of appearing N/A at 100%.
 - Restrict mixed-content `link[href]` analysis to fetched-resource relations; profile, canonical,

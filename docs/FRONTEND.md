@@ -107,6 +107,42 @@ suite and must be used only where that harmless outbound request is authorized.
 The production bundle is written to `frontend/dist/`. Phase 9 does not supply a public host,
 reverse proxy, Netlify/Vercel/Cloudflare configuration, or deployment procedure.
 
+## Simple Windows usage
+
+Start `webguard-api` in one terminal using the instructions in [CLI.md](CLI.md). If the prompt
+begins with `(.venv)`, Python's virtual environment is already active. In a second terminal, enter
+the frontend project and start Vite.
+
+### PowerShell
+
+```powershell
+cd frontend
+npm run dev
+```
+
+### Windows CMD
+
+```bat
+cd frontend
+npm run dev
+```
+
+Open the local address Vite prints. Stop either server with `Ctrl+C`. Run `deactivate` in a terminal
+that shows `(.venv)` when you want to leave the Python environment. If PowerShell's script policy
+blocks the `npm` launcher, use `npm.cmd run dev` for the same command.
+
+## Failed and partial assessment presentation
+
+An HTTP 200 response containing a valid `ReportDocument` always enters the results view.
+`COMPLETED`, `PARTIAL`, and `FAILED` describe assessment coverage; they are not frontend or server
+exceptions. A valid FAILED report shows its target, status, withheld score, coverage, established
+findings, and safe operational limitations. Repeated rule-level `check.evaluation_failed` entries
+are summarized as one not-evaluated count with optional affected-rule details.
+
+HTTP 429, 503, and 504 retain their dedicated request-error guidance. API connectivity failures
+remain distinct. The generic internal-problem screen is reserved for HTTP 500, malformed successful
+responses, unexpected frontend exceptions, and genuine internal service failures.
+
 ## Browser security and accessibility
 
 All report content is untrusted text. The application uses no raw HTML insertion, rejects malformed

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
 import type { Finding, RuleContribution } from "../api/types";
-import { makeReport, makeResponse, makeScore } from "./fixtures";
+import { makeFailedAssessmentReport, makeReport, makeResponse, makeScore } from "./fixtures";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -121,27 +121,41 @@ describe("WebGuard application flow", () => {
     mockResponse(makeResponse({
       completion_state: "PARTIAL",
       scan_metadata: { ...makeReport().scan_metadata, state: "PARTIAL" },
-      operational_errors: [{ kind: "CHECK", code: "CHECK_FAILED", message: "One passive check could not complete.", rule_id: "HDR-001" }],
+      operational_errors: [{ kind: "CHECK", code: "check.evaluation_failed", message: "One passive check could not complete.", rule_id: "HDR-001" }],
     }));
     await submit();
     expect(await screen.findByText(/completed only part/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Operational limitations" })).toBeInTheDocument();
     expect(screen.getByText(/not FAIL security findings/i)).toBeInTheDocument();
-    expect(screen.getByText(/NOT EVALUATED/)).toBeInTheDocument();
+    expect(screen.getByText(/1 check not evaluated/i)).toBeInTheDocument();
   });
 
-  it("uses a dedicated failed state without a fake score", async () => {
-    mockResponse(makeResponse({
-      completion_state: "FAILED",
-      scan_metadata: { ...makeReport().scan_metadata, state: "FAILED" },
-      score: null,
-      findings: [],
-      operational_errors: [{ kind: "NETWORK", code: "TARGET_UNREACHABLE", message: "The target could not be reached.", rule_id: null }],
-    }));
+  it("renders a valid failed assessment with established findings and withheld score", async () => {
+    mockResponse(makeResponse(makeFailedAssessmentReport()));
     await submit();
-    expect(await screen.findByRole("heading", { name: /could not produce a reliable assessment/i })).toBeInTheDocument();
-    expect(screen.queryByText("/100")).not.toBeInTheDocument();
-    expect(screen.getByText(/results are informational/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Assessment incomplete" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "https://forsa.sy/" })).toBeInTheDocument();
+    expect(screen.getByText("FAILED")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Score unavailable" })).toBeInTheDocument();
+    expect(screen.getByText("Coverage 14%")).toBeInTheDocument();
+    expect(screen.getByText(/below the configured minimum/)).toBeInTheDocument();
+    expect(screen.getByText("HTTP to HTTPS redirect")).toBeInTheDocument();
+    expect(screen.getByText("HTTPS availability")).toBeInTheDocument();
+    expect(screen.getByText("Connection timed out")).toBeInTheDocument();
+    expect(screen.getByText(/17 checks not evaluated/i)).toBeInTheDocument();
+    expect(screen.getByText(/required page observations were unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /try again or scan another site/i })).toBeInTheDocument();
+    expect(screen.queryByText(/internal problem/i)).not.toBeInTheDocument();
+  });
+
+  it("renders an untrusted TLS failed assessment as valid report data", async () => {
+    mockResponse(makeResponse(makeFailedAssessmentReport("untrusted")));
+    await submit();
+    expect(await screen.findByRole("heading", { name: "Assessment incomplete" })).toBeInTheDocument();
+    expect(screen.getByText("TLS certificate trust")).toBeInTheDocument();
+    expect(screen.getByText("TLS certificate not trusted")).toBeInTheDocument();
+    expect(screen.getByText("Coverage 20%")).toBeInTheDocument();
+    expect(screen.queryByText(/internal problem/i)).not.toBeInTheDocument();
   });
 
   it.each([
@@ -161,6 +175,14 @@ describe("WebGuard application flow", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("API could not be reached");
     expect(alert).not.toHaveTextContent("socket secrets");
+  });
+
+  it("reserves the internal problem message for an HTTP 500", async () => {
+    mockResponse({ code: "INTERNAL_ERROR", message: "unsafe server detail", request_id: "public-id" }, 500);
+    await submit();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("WebGuard encountered an internal problem");
+    expect(alert).not.toHaveTextContent("unsafe server detail");
   });
 
   it("filters findings deterministically by severity", async () => {

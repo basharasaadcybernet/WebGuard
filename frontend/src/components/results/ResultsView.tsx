@@ -20,26 +20,19 @@ interface ResultsViewProps {
 export function ResultsView({ report, submittedTarget, onRetry, expertRecommendations }: ResultsViewProps) {
   const metadata = report.scan_metadata;
   const target = report.target?.display_url ?? redactTargetForDisplay(submittedTarget);
-
-  if (report.completion_state === "FAILED") {
-    return (
-      <section className="failed-result" aria-labelledby="failed-title">
-        <div className="state-icon"><Icon name="warning" /></div>
-        <p className="eyebrow">Assessment failed</p>
-        <h2 id="failed-title">WebGuard could not produce a reliable assessment.</h2>
-        <p className="failed-target">{target}</p>
-        <OperationalErrors errors={report.operational_errors} />
-        <button type="button" className="secondary-button" onClick={onRetry}>Try another address</button>
-        <p className="permanent-disclaimer">{report.disclaimer}</p>
-      </section>
-    );
-  }
+  const failed = report.completion_state === "FAILED";
+  const partial = report.completion_state === "PARTIAL";
+  const assessmentLabel = failed
+    ? "Assessment incomplete"
+    : partial
+      ? "Assessment partial"
+      : "Assessment complete";
 
   return (
     <div className="results-view">
       <header className="result-header">
         <div>
-          <p className="eyebrow">Assessment complete</p>
+          <p className="eyebrow">{assessmentLabel}</p>
           <h2>{target}</h2>
           <div className="result-meta">
             <span className={`state-badge state-${report.completion_state.toLowerCase()}`}><span aria-hidden="true" />{report.completion_state}</span>
@@ -47,10 +40,20 @@ export function ResultsView({ report, submittedTarget, onRetry, expertRecommenda
             <span>{formatDuration(metadata.duration_ms)}</span>
           </div>
         </div>
-        <button type="button" className="secondary-button" onClick={onRetry}><Icon name="scan" />Scan another site</button>
+        <button type="button" className="secondary-button" onClick={onRetry}><Icon name="scan" />{failed ? "Try again or scan another site" : "Scan another site"}</button>
       </header>
 
-      {report.completion_state === "PARTIAL" ? (
+      {failed ? (
+        <div className="failed-assessment-notice" role="status">
+          <Icon name="warning" />
+          <div>
+            <h3>Assessment incomplete</h3>
+            <p>WebGuard could evaluate only part of this target. The available observations are shown below.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {partial ? (
         <div className="partial-notice" role="status"><Icon name="info" /><div><strong>WebGuard completed only part of the assessment.</strong><p>Review the operational notes alongside the available findings and coverage.</p></div></div>
       ) : null}
 

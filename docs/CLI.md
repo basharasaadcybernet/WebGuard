@@ -31,3 +31,45 @@ creates new files exclusively and never silently overwrites an existing report.
 
 A security finding, low score, or F grade does not itself produce a non-zero exit code. Exit codes
 describe command execution, while findings and scores describe observed posture.
+
+## Simple Windows usage
+
+If the prompt begins with `(.venv)`, the Python virtual environment is already active. Do not
+activate it again.
+
+### PowerShell
+
+From the repository directory:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+webguard scan https://example.com
+```
+
+To run the local API instead of the CLI scan:
+
+```powershell
+webguard-api
+```
+
+### Windows CMD
+
+From the repository directory:
+
+```bat
+.venv\Scripts\activate.bat
+webguard scan https://example.com
+```
+
+To run the local API instead of the CLI scan:
+
+```bat
+webguard-api
+```
+
+The API command keeps running until you stop it with `Ctrl+C`. To leave the Python environment in
+either shell, run:
+
+```text
+deactivate
+```
