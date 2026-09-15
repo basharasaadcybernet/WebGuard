@@ -1,0 +1,20 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+
+ARG VITE_WEBGUARD_API_URL=
+ARG VITE_CYBERNET_CONTACT_URL=
+ENV VITE_WEBGUARD_API_URL=${VITE_WEBGUARD_API_URL} \
+    VITE_CYBERNET_CONTACT_URL=${VITE_CYBERNET_CONTACT_URL}
+RUN npm run build
+
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /build/dist /usr/share/nginx/html
+
+USER 101:101
+EXPOSE 8080

@@ -169,6 +169,39 @@ async def test_execute_scan_cancels_work_after_timeout(make_scan_result) -> None
     assert cancelled.is_set()
 
 
+@pytest.mark.asyncio
+async def test_execute_scan_cancels_child_when_request_task_is_cancelled(make_scan_result) -> None:  # type: ignore[no-untyped-def]
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def slow(_request: ScanRequest) -> ScanResult:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+        return make_scan_result()
+
+    class ConnectedRequest:
+        async def is_disconnected(self) -> bool:
+            return False
+
+    execution = asyncio.create_task(
+        execute_scan(
+            slow,
+            ScanRequest(url="https://example.com"),
+            cast(Request, ConnectedRequest()),
+            timeout_seconds=10,
+            poll_seconds=0.001,
+        )
+    )
+    await asyncio.wait_for(started.wait(), timeout=1)
+    execution.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await execution
+    assert cancelled.is_set()
+
+
 def test_capacity_is_released_after_timeout(make_scan_result) -> None:  # type: ignore[no-untyped-def]
     cancelled = False
 

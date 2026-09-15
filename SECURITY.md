@@ -216,6 +216,38 @@ a secret, and `VITE_CYBERNET_CONTACT_URL` is an optional public contact destinat
 never be placed in frontend environment variables or the built bundle. Phase 9 stores no scan
 history in browser storage and adds no analytics, third-party scripts, or persistence.
 
+## Phase 10 production boundary
+
+Production configuration fails before startup when required bind/Host/CORS decisions are missing,
+debug is enabled, an allowlist is wildcard or malformed, a cross-origin URL is not exact HTTPS, or
+proxy trust is not an explicit IP/CIDR list. Local development retains loopback and localhost
+defaults. The API entry point disables Uvicorn access logs and forwarding trust by default; it
+enables proxy processing only for `WEBGUARD_TRUSTED_PROXIES` peers.
+
+The ASGI boundary rejects missing/ambiguous Host, conflicting length headers, bodies beyond the
+configured limit, non-JSON scan requests, duplicate JSON fields, malformed models, extra fields,
+and unsupported methods. Every API result and error receives `Cache-Control: no-store`, an
+API-specific no-content CSP, `nosniff`, `no-referrer`, frame denial, Permissions Policy, and a
+correlation ID. Production debug responses remain disabled and unexpected exception strings are
+neither returned nor logged.
+
+Production logs are metadata-only: lifecycle, correlation ID, public scan ID, state, duration, and
+high-level rejection/failure class. Targets, query strings, request/response bodies, cookies,
+Authorization, credentials, raw exceptions, tracebacks, paths, resolved addresses, and socket
+details are prohibited. There is no external telemetry service.
+
+The supplied containers run without root or development tools and the Compose example drops all
+capabilities, sets `no-new-privileges`, uses read-only filesystems plus bounded temporary storage,
+and limits CPU, memory, PIDs, connections, and scan admission. The backend remains private behind
+the proxy. These controls do not replace a host/platform firewall that independently denies LAN,
+private, link-local, metadata, cluster, control-plane, and management egress while allowing only
+the public DNS and HTTP/HTTPS behavior the scanner needs.
+
+The TLS edge owns HSTS. The supplied proxy owns the effective frontend CSP and cache policy and
+hides duplicate upstream API header copies before emitting one API policy. Hashed static assets may
+be cached; HTML is revalidated and all API responses are non-cacheable. Source maps, analytics,
+third-party runtime scripts, and CDN dependencies are absent from the production frontend.
+
 ## Responsible use
 
 WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule

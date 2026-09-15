@@ -1,0 +1,75 @@
+name: cybernet-webguard
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: runtime
+    environment:
+      WEBGUARD_ENV: production
+      WEBGUARD_BIND_HOST: 0.0.0.0
+      WEBGUARD_BIND_PORT: 8000
+      WEBGUARD_DEBUG: "false"
+      WEBGUARD_LOG_LEVEL: ${WEBGUARD_LOG_LEVEL:-INFO}
+      WEBGUARD_DOCS_ENABLED: "false"
+      WEBGUARD_ALLOWED_HOSTS: ${WEBGUARD_ALLOWED_HOSTS:?Set an exact public hostname}
+      WEBGUARD_CORS_ORIGINS: ${WEBGUARD_CORS_ORIGINS-}
+      WEBGUARD_TRUSTED_PROXIES: ${WEBGUARD_TRUSTED_PROXIES:-172.30.10.0/28}
+      WEBGUARD_MAX_CONCURRENT_SCANS: ${WEBGUARD_MAX_CONCURRENT_SCANS:-4}
+      WEBGUARD_SCAN_TIMEOUT_SECONDS: ${WEBGUARD_SCAN_TIMEOUT_SECONDS:-90}
+      WEBGUARD_MAX_REQUEST_BODY_BYTES: ${WEBGUARD_MAX_REQUEST_BODY_BYTES:-4096}
+      WEBGUARD_RATE_LIMIT_REQUESTS: ${WEBGUARD_RATE_LIMIT_REQUESTS:-10}
+      WEBGUARD_RATE_LIMIT_WINDOW_SECONDS: ${WEBGUARD_RATE_LIMIT_WINDOW_SECONDS:-60}
+      WEBGUARD_RATE_LIMIT_MAX_CLIENTS: ${WEBGUARD_RATE_LIMIT_MAX_CLIENTS:-4096}
+    expose:
+      - "8000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 20s
+    restart: unless-stopped
+    networks:
+      - proxy
+      - egress
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_WEBGUARD_API_URL: ""
+        VITE_CYBERNET_CONTACT_URL: ${VITE_CYBERNET_CONTACT_URL-}
+    ports:
+      - "${WEBGUARD_PUBLIC_BIND:-127.0.0.1}:${WEBGUARD_PUBLIC_PORT:-8080}:8080"
+    depends_on:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.10.0/28
+  egress: {}

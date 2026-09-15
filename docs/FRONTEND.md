@@ -107,6 +107,12 @@ suite and must be used only where that harmless outbound request is authorized.
 The production bundle is written to `frontend/dist/`. Phase 9 does not supply a public host,
 reverse proxy, Netlify/Vercel/Cloudflare configuration, or deployment procedure.
 
+Phase 10 keeps this output fully static and explicitly disables production source maps. The
+recommended deployment serves `/` and `/api/` from the same HTTPS origin, so
+`VITE_WEBGUARD_API_URL` stays empty. A separate-origin deployment may set it to the public HTTPS API
+origin and must configure the exact frontend origin in backend CORS. Vite variables are embedded in
+the public bundle and must never contain secrets. See [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Simple Windows usage
 
 Start `webguard-api` in one terminal using the instructions in [CLI.md](CLI.md). If the prompt

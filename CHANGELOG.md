@@ -7,6 +7,16 @@ begin.
 
 ### Added
 
+- Phase 10 development/test/production configuration profiles with fail-closed production Host,
+  CORS, debug, trusted-proxy, logging, bind, rate, concurrency, body, and timeout validation.
+- Defensive API security/cache headers, JSON-only scan requests, duplicate-field rejection,
+  metadata-only lifecycle/scan logging, and explicit allowlisted Uvicorn proxy handling.
+- Non-root multi-stage backend and static frontend containers, a hardened production Compose
+  example, minimal same-origin Nginx gateway, environment template, deployment guide, and practical
+  controlled-beta checklist.
+- Production regression coverage for configuration failure, CORS/Host policy, sanitized errors,
+  no-store/security headers, media type, duplicate JSON fields, proxy trust, and cancellation.
+
 - Phase 9.5 controlled A-H regression scenarios for reachable HTTPS, classified TLS failures,
   HTTPS-unavailable/HTTP-reachable and total failures, mixed-content link semantics, genuine
   insecure resources, and no-cookie applicability.

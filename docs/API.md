@@ -14,8 +14,8 @@ Install the project and run the package entry point:
 ```
 
 The default listener is `http://127.0.0.1:8000`. Interactive OpenAPI documentation is available at
-`/docs`; disable it with `WEBGUARD_DOCS_ENABLED=false`. `webguard-api` is a single-process
-development command and deliberately disables proxy-header trust.
+`/docs`; disable it with `WEBGUARD_DOCS_ENABLED=false`. `webguard-api` deliberately runs one worker,
+disables raw access logging, and trusts proxy headers only when exact peer IPs/CIDRs are configured.
 
 ## Endpoints
 
@@ -75,6 +75,7 @@ Errors use one stable shape:
 | 200 | A sanitized scan result is available, including partial/failed observations or negative findings. |
 | 400 | Invalid Host/HTTP envelope. |
 | 413 | Body exceeds `WEBGUARD_MAX_REQUEST_BODY_BYTES`. |
+| 415 | Scan request is not `application/json`. |
 | 422 | Invalid JSON/model or a target rejected during syntactic URL policy validation. |
 | 429 | Direct peer exceeded the process-local fixed-window allowance. |
 | 499 | Client disconnected; primarily an internal/diagnostic status because the client is gone. |
@@ -90,10 +91,20 @@ never HTTP failures.
 Every HTTP response includes `X-Request-ID`; success/error bodies also carry that UUID where useful.
 It is random, contains no identity, and is not persisted.
 
+All `/api/` responses, including boundary and 500 errors, carry `Cache-Control: no-store`, a
+no-content CSP, `nosniff`, `no-referrer`, framing denial, and a conservative Permissions Policy.
+The TLS reverse proxy remains responsible for HSTS.
+
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | ---: | --- |
+| `WEBGUARD_ENV` | `development` | Runtime profile: development, test, or production. |
+| `WEBGUARD_BIND_HOST` | `127.0.0.1` | Listener; must be explicit in production. |
+| `WEBGUARD_BIND_PORT` | `8000` | Listener port. |
+| `WEBGUARD_DEBUG` | `false` | Explicit local debugging; forbidden in production. |
+| `WEBGUARD_LOG_LEVEL` | `INFO` | CRITICAL, ERROR, WARNING, INFO, or DEBUG. |
+| `WEBGUARD_DOCS_ENABLED` | profile-based | Defaults off in production and on otherwise. |
 | `WEBGUARD_MAX_CONCURRENT_SCANS` | `4` | Immediate per-process active-scan capacity. |
 | `WEBGUARD_SCAN_TIMEOUT_SECONDS` | `90` | Overall API deadline; does not weaken inner network timeouts. |
 | `WEBGUARD_MAX_REQUEST_BODY_BYTES` | `4096` | Complete inbound HTTP body cap. |
@@ -102,18 +113,18 @@ It is random, contains no identity, and is not persisted.
 | `WEBGUARD_RATE_LIMIT_MAX_CLIENTS` | `4096` | Hard cap on temporary hashed peer entries. |
 | `WEBGUARD_CORS_ORIGINS` | `http://localhost:5173` | Comma-separated exact frontend origins. |
 | `WEBGUARD_ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver` | Comma-separated accepted HTTP Host names. |
-| `WEBGUARD_DOCS_ENABLED` | `true` | Development OpenAPI/docs exposure. |
-| `WEBGUARD_BIND_HOST` | `127.0.0.1` | Development entry-point listener. |
-| `WEBGUARD_BIND_PORT` | `8000` | Development entry-point port. |
+| `WEBGUARD_TRUSTED_PROXIES` | empty | Exact proxy IP/CIDR allowlist; enables forwarded-client handling. |
 
-Unsafe/invalid configuration fails process startup. Wildcard CORS and Host lists are rejected.
-CORS credentials are always disabled. The limiter keys only the ASGI direct peer, uses a
-process-random keyed hash, ignores all forwarding headers, and evicts old peers to remain bounded.
-Each worker has independent concurrency and rate state.
+Unsafe/invalid configuration fails process startup. Production additionally requires explicit
+bind, Host, and CORS variables, rejects debug and HTTP CORS origins, and permits an empty CORS list
+for the preferred same-origin topology. Wildcard Host/CORS/proxy trust is rejected. CORS credentials
+are always disabled. The limiter keys the ASGI peer after Uvicorn's optional trusted-proxy boundary,
+uses a process-random keyed hash, and evicts old peers to remain bounded. Each worker has independent
+concurrency and rate state.
 
 ## Production deployment requirements
 
-Phase 8 does not deploy WebGuard. A future production deployment must provide:
+Phase 10 does not deploy WebGuard. A controlled beta deployment must provide:
 
 - an HTTPS reverse proxy/CDN with public request-size and distributed rate limits;
 - explicit Uvicorn trusted-proxy configuration, or proxy headers kept disabled;
@@ -127,6 +138,9 @@ Phase 8 does not deploy WebGuard. A future production deployment must provide:
 Do not trust arbitrary `X-Forwarded-For`, `X-Forwarded-Host`, or `X-Forwarded-Proto`. CORS does not
 replace authentication or ingress controls. Multi-process deployments require proxy/CDN limiting
 because the built-in limiter is intentionally not distributed.
+
+See `DEPLOYMENT.md` for the same-origin and separate-origin topologies, egress model, containers,
+headers, caching, lifecycle, and logging policy. Use `PRODUCTION_CHECKLIST.md` as the release gate.
 
 ## Deferred HTML support
 

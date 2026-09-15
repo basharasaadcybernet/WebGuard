@@ -499,3 +499,35 @@ The backend remains the sole scoring authority because it owns versioned weights
 coverage, caps, and grade rules. React displays final score, raw score, grade, coverage, and reasons
 from the response. Duplicating that logic in the browser would create drift and could misleadingly
 turn unavailable evidence into a score.
+
+## Production concepts in plain language
+
+A **production environment** is the real hosted service. Unlike development, it must not assume
+localhost, show debugging pages, or guess public trust settings. Environment variables pass those
+deployment-specific values into the same image without putting them into source code. They are
+configuration, not a safe place for frontend secrets: every Vite variable is visible to browsers.
+
+A **reverse proxy** receives browser traffic before the API. It can terminate TLS (turn encrypted
+HTTPS into private internal HTTP), serve static files, bound requests and connections, and apply a
+public rate limit. A `Host` header says which public hostname the browser requested; validating it
+prevents an attacker from making the application accept arbitrary names.
+
+**CORS** controls which other browser origin may read the API. It is not authentication. Same-origin
+frontend and API need no CORS exception. A **trusted proxy** is an exact network peer allowed to
+supply forwarded client information. Trusting forwarded headers from everyone lets a client forge
+its address and bypass address-based policy.
+
+**Rate limiting** bounds how often work begins; **concurrency limiting** bounds how much work runs
+at once. WebGuard keeps a small in-process safety limit, while the public proxy must enforce the
+shared deployment limit. Returning 429 or 503 immediately is safer than creating an unlimited
+queue.
+
+**Egress filtering** is a firewall for outbound traffic. Even though WebGuard validates URLs and
+pins approved public destinations, infrastructure should independently block private networks,
+metadata services, management interfaces, and unnecessary ports. Independent controls are called
+**defense in depth**: failure of one layer does not automatically expose the protected network.
+
+A **container** packages one predictable process. Running as a **non-root** user, dropping Linux
+capabilities, preventing privilege escalation, and making the filesystem read-only reduce damage
+if that process is compromised. Containers are isolation tools, not a substitute for patching,
+resource limits, network policy, or an incident/rollback plan.

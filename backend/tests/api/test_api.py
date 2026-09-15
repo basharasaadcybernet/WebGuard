@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Callable
 import pytest
 from fastapi.testclient import TestClient
 
-from webguard.api import ApiSettings, create_app
+from webguard.api import ApiSettings, RuntimeEnvironment, create_app
 from webguard.domain.enums import FindingStatus, ScanState, Severity
 from webguard.domain.models import Evidence, Finding, ScanRequest, ScanResult
 
@@ -27,6 +27,17 @@ def settings(**overrides: object) -> ApiSettings:
     }
     values.update(overrides)
     return ApiSettings(**values)  # type: ignore[arg-type]
+
+
+def production_settings(**overrides: object) -> ApiSettings:
+    values: dict[str, object] = {
+        "environment": RuntimeEnvironment.PRODUCTION,
+        "cors_origins": (),
+        "allowed_hosts": ("webguard.example.invalid",),
+        "docs_enabled": False,
+    }
+    values.update(overrides)
+    return settings(**values)
 
 
 def service_for(result: ScanResult) -> Callable[[ScanRequest], AsyncIterator[ScanResult]]:
@@ -51,6 +62,25 @@ def test_health_is_cheap_and_minimal(make_scan_result) -> None:  # type: ignore[
     assert response.json() == {"status": "ok"}
     assert calls == 0
     assert response.headers["x-request-id"]
+
+
+def test_api_responses_have_no_store_and_defensive_security_headers(make_scan_result) -> None:  # type: ignore[no-untyped-def]
+    app = create_app(
+        settings=production_settings(),
+        scan_service=service_for(make_scan_result()),  # type: ignore[arg-type]
+    )
+    with TestClient(app, base_url="https://webguard.example.invalid") as client:
+        response = client.get("/api/v1/health")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["content-security-policy"] == (
+        "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert "camera=()" in response.headers["permissions-policy"]
 
 
 def test_version_exposes_only_public_compatibility_fields(make_scan_result) -> None:  # type: ignore[no-untyped-def]
@@ -162,6 +192,40 @@ def test_request_body_limit_is_enforced_before_json_parsing(make_scan_result) ->
 
     assert response.status_code == 413
     assert response.json()["code"] == "REQUEST_TOO_LARGE"
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_scan_endpoint_rejects_non_json_content_type(make_scan_result) -> None:  # type: ignore[no-untyped-def]
+    app = create_app(
+        settings=settings(), scan_service=service_for(make_scan_result())  # type: ignore[arg-type]
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/scans",
+            content='{"target":"https://example.com"}',
+            headers={"content-type": "text/plain"},
+        )
+
+    assert response.status_code == 415
+    assert response.json()["code"] == "INVALID_REQUEST"
+
+
+def test_scan_endpoint_rejects_duplicate_json_fields(make_scan_result) -> None:  # type: ignore[no-untyped-def]
+    app = create_app(
+        settings=settings(), scan_service=service_for(make_scan_result())  # type: ignore[arg-type]
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/scans",
+            content=(
+                '{"target":"https://example.com",'
+                '"target":"https://attacker.example"}'
+            ),
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "INVALID_REQUEST"
 
 
 def test_unknown_host_is_rejected_with_public_error(make_scan_result) -> None:  # type: ignore[no-untyped-def]
@@ -205,6 +269,29 @@ def test_cors_does_not_authorize_unknown_origin(make_scan_result) -> None:  # ty
     assert "access-control-allow-credentials" not in response.headers
 
 
+def test_production_cors_allows_only_explicit_https_origin(make_scan_result) -> None:  # type: ignore[no-untyped-def]
+    app = create_app(
+        settings=production_settings(cors_origins=("https://frontend.example.invalid",)),
+        scan_service=service_for(make_scan_result()),  # type: ignore[arg-type]
+    )
+    with TestClient(app, base_url="https://webguard.example.invalid") as client:
+        allowed = client.options(
+            "/api/v1/scans",
+            headers={
+                "origin": "https://frontend.example.invalid",
+                "access-control-request-method": "POST",
+                "access-control-request-headers": "content-type",
+            },
+        )
+        rejected = client.get(
+            "/api/v1/health", headers={"origin": "https://untrusted.example.invalid"}
+        )
+
+    assert allowed.headers["access-control-allow-origin"] == "https://frontend.example.invalid"
+    assert "access-control-allow-credentials" not in allowed.headers
+    assert "access-control-allow-origin" not in rejected.headers
+
+
 def test_response_never_serializes_sensitive_target_or_exception_data(make_scan_result) -> None:  # type: ignore[no-untyped-def]
     result = make_scan_result()
     with TestClient(
@@ -231,14 +318,40 @@ def test_response_never_serializes_sensitive_target_or_exception_data(make_scan_
         assert secret not in serialized
 
 
+def test_scan_logging_uses_metadata_not_target_or_request_secrets(
+    caplog, make_scan_result
+) -> None:  # type: ignore[no-untyped-def]
+    caplog.set_level("INFO", logger="webguard.api")
+    app = create_app(
+        settings=settings(), scan_service=service_for(make_scan_result())  # type: ignore[arg-type]
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/scans",
+            json={"target": "https://example.com/account?token=private-value"},
+            headers={"authorization": "Bearer private-authorization", "cookie": "sid=private"},
+        )
+
+    assert response.status_code == 200
+    assert "API scan started request_id=" in caplog.text
+    assert "API scan finished request_id=" in caplog.text
+    assert "duration_ms=" in caplog.text
+    assert "private-value" not in caplog.text
+    assert "private-authorization" not in caplog.text
+
+
 def test_unexpected_exception_is_sanitized_and_correlated() -> None:
     async def broken(_request: ScanRequest) -> ScanResult:
         raise RuntimeError(
             "Authorization: Bearer secret; C:\\Users\\private; https://site/?token=hidden"
         )
 
-    app = create_app(settings=settings(), scan_service=broken)
-    with TestClient(app, raise_server_exceptions=False) as client:
+    app = create_app(settings=production_settings(), scan_service=broken)
+    with TestClient(
+        app,
+        base_url="https://webguard.example.invalid",
+        raise_server_exceptions=False,
+    ) as client:
         response = client.post("/api/v1/scans", json={"target": "https://example.com"})
 
     assert response.status_code == 500
@@ -247,6 +360,8 @@ def test_unexpected_exception_is_sanitized_and_correlated() -> None:
     assert "secret" not in response.text
     assert "private" not in response.text
     assert "hidden" not in response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert app.debug is False
 
 
 def test_openapi_documents_only_the_small_v1_surface(make_scan_result) -> None:  # type: ignore[no-untyped-def]

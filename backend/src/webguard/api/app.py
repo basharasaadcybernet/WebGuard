@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
-from contextlib import suppress
+from collections.abc import AsyncIterator, Callable, Coroutine
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -17,7 +17,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from webguard import __version__
 from webguard.api.config import ApiSettings
 from webguard.api.controls import ClientRateLimiter, ScanCapacity
-from webguard.api.middleware import ApiBoundaryMiddleware, request_id_from_scope
+from webguard.api.middleware import (
+    API_SECURITY_HEADERS,
+    ApiBoundaryMiddleware,
+    request_id_from_scope,
+)
 from webguard.api.models import (
     ApiErrorCode,
     ApiErrorResponse,
@@ -94,6 +98,14 @@ def create_app(
     registry = default_check_registry()
     scoring = load_scoring_config()
 
+    @asynccontextmanager
+    async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+        logger.info("API process started")
+        try:
+            yield
+        finally:
+            logger.info("API process stopped")
+
     application = FastAPI(
         title="CyberNet WebGuard API",
         summary="Safe passive web security posture scanning.",
@@ -102,9 +114,11 @@ def create_app(
             "returned as successful scan data, not HTTP execution errors."
         ),
         version=__version__,
+        debug=configured.debug,
         docs_url="/docs" if configured.docs_enabled else None,
         redoc_url=None,
         openapi_url="/openapi.json" if configured.docs_enabled else None,
+        lifespan=lifespan,
     )
     application.state.settings = configured
     application.state.scan_capacity = capacity
@@ -187,6 +201,7 @@ def create_app(
     error_responses: dict[int | str, dict[str, Any]] = {
         400: {"model": ApiErrorResponse, "description": "Invalid HTTP request envelope"},
         413: {"model": ApiErrorResponse, "description": "Request body too large"},
+        415: {"model": ApiErrorResponse, "description": "Unsupported request media type"},
         422: {"model": ApiErrorResponse, "description": "Invalid request or target"},
         429: {"model": ApiErrorResponse, "description": "Per-client rate limit exceeded"},
         499: {"model": ApiErrorResponse, "description": "Client disconnected"},
@@ -206,8 +221,10 @@ def create_app(
         ),
     )
     async def scan(payload: ScanApiRequest, request: Request) -> ScanApiResponse | JSONResponse:
+        request_id = request_id_from_scope(request.scope)
         client_host = request.client.host if request.client is not None else "unknown"
         if not await limiter.allow(client_host):
+            logger.warning("API scan rate rejected request_id=%s", request_id)
             return _error_response(
                 request,
                 status_code=429,
@@ -215,6 +232,7 @@ def create_app(
                 message="The scan rate limit has been reached. Try again later.",
             )
         if not await capacity.try_acquire():
+            logger.warning("API scan capacity rejected request_id=%s", request_id)
             return _error_response(
                 request,
                 status_code=503,
@@ -222,7 +240,8 @@ def create_app(
                 message="WebGuard is at scan capacity. Try again later.",
             )
 
-        request_id = request_id_from_scope(request.scope)
+        started_at = asyncio.get_running_loop().time()
+        logger.info("API scan started request_id=%s", request_id)
         try:
             result = await execute_scan(
                 service,
@@ -231,7 +250,10 @@ def create_app(
                 timeout_seconds=configured.scan_timeout_seconds,
             )
         except ScanTimedOut:
-            logger.warning("API scan timed out request_id=%s", request_id)
+            duration_ms = round((asyncio.get_running_loop().time() - started_at) * 1000)
+            logger.warning(
+                "API scan timed out request_id=%s duration_ms=%s", request_id, duration_ms
+            )
             return _error_response(
                 request,
                 status_code=504,
@@ -239,7 +261,12 @@ def create_app(
                 message="The scan exceeded the API execution deadline.",
             )
         except ClientDisconnected:
-            logger.info("API client disconnected request_id=%s", request_id)
+            duration_ms = round((asyncio.get_running_loop().time() - started_at) * 1000)
+            logger.info(
+                "API client disconnected request_id=%s duration_ms=%s",
+                request_id,
+                duration_ms,
+            )
             return _error_response(
                 request,
                 status_code=499,
@@ -250,6 +277,7 @@ def create_app(
             await capacity.release()
 
         if any(error.kind is ScanErrorKind.TARGET for error in result.errors):
+            logger.info("API scan rejected request_id=%s failure_class=target_policy", request_id)
             return _error_response(
                 request,
                 status_code=422,
@@ -257,11 +285,13 @@ def create_app(
                 message="The target was rejected by WebGuard's URL safety policy.",
             )
 
+        duration_ms = round((asyncio.get_running_loop().time() - started_at) * 1000)
         logger.info(
-            "API scan finished request_id=%s scan_id=%s state=%s",
+            "API scan finished request_id=%s scan_id=%s state=%s duration_ms=%s",
             request_id,
             result.metadata.scan_id,
             result.metadata.state,
+            duration_ms,
         )
         return ScanApiResponse(request_id=request_id, report=report_builder.build(result))
 
@@ -280,8 +310,5 @@ def _error_response(
     return JSONResponse(
         status_code=status_code,
         content=body.model_dump(mode="json"),
-        headers={"X-Request-ID": str(request_id)},
+        headers={"X-Request-ID": str(request_id), **API_SECURITY_HEADERS},
     )
-
-
-app = create_app()

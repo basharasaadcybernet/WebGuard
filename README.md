@@ -4,7 +4,7 @@ WebGuard is a production-oriented foundation for safe, low-impact inspection of 
 externally visible security posture. It is not an exploitation framework, vulnerability proof,
 or unrestricted HTTP proxy.
 
-This repository currently contains milestones 1-9:
+This repository currently contains milestones 1-10:
 
 - reproducible Python project configuration;
 - stable domain contracts for future CLI, API, and report adapters;
@@ -14,7 +14,9 @@ This repository currently contains milestones 1-9:
 - versioned, deterministic, coverage-aware scoring with per-rule contributions; and
 - a Typer/Rich CLI plus versioned JSON and self-contained HTML reports; and
 - a minimal FastAPI REST adapter with bounded admission, rate, request, and execution controls; and
-- a responsive CyberNet-branded React/TypeScript application for interactive local scans.
+- a responsive CyberNet-branded React/TypeScript application for interactive local scans; and
+- fail-closed production configuration, hardened containers, a same-origin reverse-proxy example,
+  security headers, cache policy, and controlled-beta deployment guidance.
 
 The implemented checks cover HTTPS availability, HTTP upgrade redirects, TLS trust/hostname/
 expiration, HTTPS downgrade behavior, HSTS, CSP presence, `nosniff`, Referrer-Policy,
@@ -29,6 +31,7 @@ public result through terminal, JSON, and offline HTML output. Phase 8 exposes t
 report contract through a stateless `/api/v1/` API; it adds no scanner or scoring logic. Phase 9
 adds a production-build-ready frontend that displays this contract without recalculating it. No
 database, persistence, history, monitoring, public deployment, or active scanner is implemented.
+Phase 10 prepares provider-neutral artifacts only; it does not publish the service.
 
 ## Development setup
 
@@ -58,6 +61,12 @@ The API development server binds to `127.0.0.1:8000` by default. Its three endpo
 `GET /api/v1/health`, `GET /api/v1/version`, and `POST /api/v1/scans`. See `docs/API.md` for the
 request/response contract, environment settings, status policy, and production deployment
 requirements. FastAPI docs are available at `/docs` unless explicitly disabled.
+
+Production mode requires explicit bind, Host, and CORS decisions and rejects debug or wildcard
+trust. See `docs/DEPLOYMENT.md`, `.env.example`, and `docs/PRODUCTION_CHECKLIST.md` before running a
+controlled beta. The preferred topology serves the static frontend and `/api/` through one HTTPS
+origin while keeping the API listener private. `requirements.production.txt` pins the reviewed
+Python 3.12 container resolution; the frontend uses its committed npm lockfile.
 
 Run the local product in two terminals:
 
@@ -93,6 +102,14 @@ When Docker is available, the same checks can run in a clean Python 3.12 contain
 
 ```powershell
 docker compose run --build --rm backend-checks
+```
+
+Production-oriented images and a local-only-by-default Compose example are separate from that
+check container. Validate them only after setting the reserved Host placeholder:
+
+```powershell
+$env:WEBGUARD_ALLOWED_HOSTS = "webguard.example.invalid"
+docker compose -f docker-compose.production.yml config
 ```
 
 All outbound HTTP access must use `webguard.security.SafeHttpClient`. Real checks receive only
