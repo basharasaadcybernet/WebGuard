@@ -99,26 +99,92 @@ needs no privileged mode, Docker socket, host network, persistent volume, or sec
 image. `Dockerfile.frontend` builds static Vite assets and serves them through unprivileged Nginx.
 
 The production Compose example adds a read-only root filesystem, small temporary filesystem,
-dropped Linux capabilities, `no-new-privileges`, PID/memory/CPU limits, a private proxy network,
-and a separate backend egress network. Its public bind defaults to loopback so running the example
-does not itself publish WebGuard.
+dropped Linux capabilities, `no-new-privileges`, PID/memory/CPU limits, a host-facing ingress
+network used only by Nginx, a private proxy network, and a separate backend egress network. Its
+public bind defaults to loopback so running the example does not itself publish WebGuard.
 
 Compose assigns the isolated proxy network `172.30.10.0/28` and trusts that exact CIDR so the
 frontend proxy can supply the client peer used by the bounded application limiter. Only the
 frontend and backend join that network. If the subnet or topology changes, update the trusted CIDR
 to the direct proxy network or leave it empty to disable forwarded-header handling.
 
-Example validation and local controlled start:
+The backend has a Docker health check against its minimal `/api/v1/health` endpoint. Nginx starts
+only after that check succeeds, preventing a startup-time 502 while Uvicorn is still initializing.
+
+## Proven local production-stack workflow
+
+Phase 10.5 validated the real production images on Docker Desktop using the reserved
+`webguard.localhost` name. The additional Compose file changes only the backend Host allowlist and
+bind-mounts an Nginx configuration whose sole policy difference from `deploy/nginx.conf` is that
+local hostname. The published port remains loopback-only. Never use the local-validation override
+for a public deployment.
+
+Validate, build, and start:
 
 ```powershell
-$env:WEBGUARD_ALLOWED_HOSTS = "webguard.example.invalid"
-docker compose -f docker-compose.production.yml config
-docker compose -f docker-compose.production.yml build
-docker compose -f docker-compose.production.yml up
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml config
+
+docker compose --env-file .env.example -f docker-compose.production.yml build
+
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml up -d --wait
 ```
 
-Do not use the reserved hostname for a real beta. Container tags are readable version pins, not
+Inspect status, Nginx, logs, and health:
+
+```powershell
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml ps
+
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml exec -T frontend nginx -t
+
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml logs --no-color --tail 200
+
+curl.exe http://webguard.localhost:8080/api/v1/health
+curl.exe http://webguard.localhost:8080/api/v1/version
+```
+
+Restart and stop cleanly:
+
+```powershell
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml restart
+
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml up -d --wait
+
+docker compose --env-file .env.example `
+  -f docker-compose.production.yml `
+  -f docker-compose.local-validation.yml down
+```
+
+For an update, check out the reviewed release, rerun `config`, rebuild both images, then use
+`up -d --wait` and the health checks above. For rollback, retain the previous reviewed image/config
+pair, restore those exact tags or digests and environment file, run `up -d --wait`, then repeat the
+health and browser smoke tests. WebGuard v0.1 has no database or migration rollback step.
+
+Do not use either reserved hostname for a real beta. Container tags are readable version pins, not
 immutable digests; a production operator should pin reviewed image digests in release automation.
+
+### Local verification boundary
+
+The local workflow verifies image construction, Compose topology, Nginx syntax, container
+hardening, loopback browser/API behavior, application and proxy limits, response policy, and clean
+container lifecycle. It does not verify a public hostname or DNS, a trusted TLS certificate and
+HTTPS redirect, host or cloud firewall policy, infrastructure-enforced egress filtering,
+production log shipping/monitoring, an authorized public smoke test, or a server rollback. Those
+items remain deployment-environment requirements and must be evidenced on the controlled-beta
+server before they are checked in `docs/PRODUCTION_CHECKLIST.md`.
 
 ## Egress defense in depth
 

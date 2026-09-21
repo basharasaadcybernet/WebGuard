@@ -24,6 +24,19 @@ services:
       WEBGUARD_RATE_LIMIT_MAX_CLIENTS: ${WEBGUARD_RATE_LIMIT_MAX_CLIENTS:-4096}
     expose:
       - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request; host = os.environ["WEBGUARD_ALLOWED_HOSTS"].split(",")[0].strip();
+          request = urllib.request.Request("http://127.0.0.1:8000/api/v1/health", headers={"Host": host});
+          assert urllib.request.urlopen(request, timeout=2).read() == b'{"status":"ok"}'
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     init: true
     read_only: true
     tmpfs:
@@ -51,7 +64,8 @@ services:
     ports:
       - "${WEBGUARD_PUBLIC_BIND:-127.0.0.1}:${WEBGUARD_PUBLIC_PORT:-8080}:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
@@ -64,9 +78,11 @@ services:
     cpus: 0.5
     restart: unless-stopped
     networks:
+      - ingress
       - proxy
 
 networks:
+  ingress: {}
   proxy:
     internal: true
     ipam:

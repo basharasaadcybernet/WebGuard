@@ -1,0 +1,11 @@
+services:
+  backend:
+    environment:
+      WEBGUARD_ALLOWED_HOSTS: webguard.localhost
+
+  frontend:
+    volumes:
+      - type: bind
+        source: ./deploy/nginx.local-validation.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true

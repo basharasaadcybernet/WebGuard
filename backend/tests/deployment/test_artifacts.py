@@ -22,8 +22,15 @@ def test_backend_runtime_image_is_non_root_and_excludes_dev_command() -> None:
 def test_production_compose_keeps_backend_private_and_drops_privilege() -> None:
     compose = read("docker-compose.production.yml")
     backend = compose.split("  backend:", maxsplit=1)[1].split("  frontend:", maxsplit=1)[0]
+    frontend = compose.split("  frontend:", maxsplit=1)[1].split("\nnetworks:", maxsplit=1)[0]
     assert "    expose:\n      - \"8000\"" in backend
     assert "    ports:" not in backend
+    assert "    healthcheck:" in backend
+    assert "/api/v1/health" in backend
+    assert "condition: service_healthy" in frontend
+    assert "      - ingress\n      - proxy" in frontend
+    assert "  ingress: {}" in compose
+    assert "  proxy:\n    internal: true" in compose
     assert "read_only: true" in backend
     assert "no-new-privileges:true" in backend
     assert "cap_drop:\n      - ALL" in backend
@@ -41,6 +48,18 @@ def test_proxy_rejects_unknown_hosts_and_bounds_scan_ingress() -> None:
     assert "limit_req_status 429" in nginx
     assert "limit_conn_status 503" in nginx
     assert "proxy_read_timeout 95s" in nginx
+
+
+def test_local_validation_keeps_production_proxy_policy_unchanged() -> None:
+    production = read("deploy/nginx.conf")
+    local = read("deploy/nginx.local-validation.conf")
+    assert local == production.replace(
+        "server_name webguard.example.invalid;", "server_name webguard.localhost;"
+    )
+
+    override = read("docker-compose.local-validation.yml")
+    assert "WEBGUARD_ALLOWED_HOSTS: webguard.localhost" in override
+    assert "./deploy/nginx.local-validation.conf" in override
 
 
 def test_proxy_overwrites_forwarded_client_data_and_disables_api_cache() -> None:
