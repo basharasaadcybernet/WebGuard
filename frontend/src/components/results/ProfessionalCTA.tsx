@@ -9,7 +9,7 @@ export function ProfessionalCTA() {
   return (
     <section className="professional-cta" aria-labelledby="cta-title">
       <div className="cta-mark"><Icon name="shield" /></div>
-      <div><p className="eyebrow">CyberNet professional services</p><h2 id="cta-title">Need help prioritizing or remediating these findings?</h2><p>Turn posture observations into a focused improvement plan with a professional security review.</p></div>
+      <div><p className="eyebrow">Bashar Asaad professional services</p><h2 id="cta-title">Need help prioritizing or remediating these findings?</h2><p>Turn posture observations into a focused improvement plan with a professional security review.</p></div>
       {href ? (
         <a className="primary-button" href={href} target={href.startsWith("mailto:") ? undefined : "_blank"} rel={href.startsWith("mailto:") ? undefined : "noopener noreferrer"}>Request a security review<Icon name="arrow" /></a>
       ) : (

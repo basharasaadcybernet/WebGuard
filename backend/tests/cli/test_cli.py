@@ -24,14 +24,14 @@ def test_help_and_version_commands() -> None:
     assert "Safe, passive web security posture auditing" in help_result.stdout
     assert "scan" in help_result.stdout
     assert version_result.exit_code == ExitCode.SUCCESS
-    assert version_result.stdout.strip() == "CyberNet WebGuard 0.1.0.dev0"
+    assert version_result.stdout.strip() == "WebGuard 0.1.0 by Bashar Asaad"
 
 
 def test_completed_human_scan_is_professional_and_successful(make_scan_result) -> None:  # type: ignore[no-untyped-def]
     result = runner.invoke(app_for(make_scan_result()), ["scan", "https://example.com"])
     assert result.exit_code == ExitCode.SUCCESS
     for expected in (
-        "CyberNet WebGuard",
+        "WebGuard by Bashar Asaad",
         "Web Security Posture Auditor",
         "Target",
         "Status",
@@ -113,7 +113,7 @@ def test_json_stdout_contains_only_valid_json(make_scan_result) -> None:  # type
     document = json.loads(result.stdout)
     assert document["report_schema_version"] == "1.0"
     assert document["completion_state"] == "COMPLETED"
-    assert "CyberNet WebGuard" not in result.stdout
+    assert "WebGuard by Bashar Asaad" not in result.stdout
     assert result.stderr == ""
 
 

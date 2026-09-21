@@ -1,6 +1,6 @@
-# Phase 9 frontend
+# WebGuard frontend
 
-The `frontend/` directory contains the React 19, TypeScript, and Vite application for CyberNet
+The `frontend/` directory contains the React 19, TypeScript, and Vite application for Bashar Asaad's
 WebGuard. It is a stateless browser client for the Phase 8 REST API. It adds no checks, scanner
 networking, scoring rules, accounts, history, persistence, analytics, or deployment configuration.
 
@@ -45,7 +45,7 @@ distinct exclusion and cap reasons remain visible.
 
 ## Local development
 
-Python 3.12 and Node 22.12 or newer are required. From the repository root:
+Python 3.12 and Node 22.13 or newer are required. From the repository root:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"

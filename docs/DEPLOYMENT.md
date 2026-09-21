@@ -119,7 +119,7 @@ bind-mounts an Nginx configuration whose sole policy difference from `deploy/ngi
 local hostname. The published port remains loopback-only. Never use the local-validation override
 for a public deployment.
 
-Validate, build, and start:
+Validate, build, and start on Windows PowerShell:
 
 ```powershell
 docker compose --env-file .env.example `
@@ -132,6 +132,25 @@ docker compose --env-file .env.example `
   -f docker-compose.production.yml `
   -f docker-compose.local-validation.yml up -d --wait
 ```
+
+Linux and macOS use the same Compose files with POSIX line continuation:
+
+```bash
+docker compose --env-file .env.example \
+  -f docker-compose.production.yml \
+  -f docker-compose.local-validation.yml config
+
+docker compose --env-file .env.example \
+  -f docker-compose.production.yml \
+  -f docker-compose.local-validation.yml build
+
+docker compose --env-file .env.example \
+  -f docker-compose.production.yml \
+  -f docker-compose.local-validation.yml up -d --wait
+```
+
+Open `http://webguard.localhost:8080`. The exact hostname is part of the local Host allowlist;
+`http://localhost:8080` is intentionally rejected.
 
 Inspect status, Nginx, logs, and health:
 
@@ -167,6 +186,10 @@ docker compose --env-file .env.example `
   -f docker-compose.production.yml `
   -f docker-compose.local-validation.yml down
 ```
+
+On Linux or macOS, replace PowerShell backticks with backslashes. The CLI and Compose definitions
+are designed to be portable, but the Phase 10.5 full-stack runtime validation was performed on
+Windows with Docker Desktop/WSL2; clean-machine Linux and macOS execution remains pending.
 
 For an update, check out the reviewed release, rerun `config`, rebuild both images, then use
 `up -d --wait` and the health checks above. For rollback, retain the previous reviewed image/config

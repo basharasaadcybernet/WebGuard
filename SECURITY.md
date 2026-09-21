@@ -250,11 +250,12 @@ third-party runtime scripts, and CDN dependencies are absent from the production
 
 ## Responsible use
 
-WebGuard is intended for systems the operator owns or is authorized to assess. The planned rule
+WebGuard is intended for systems the operator owns or is authorized to assess. The implemented rule
 set is passive and low impact; active exploitation, credential testing, enumeration, fuzzing,
 and port scanning are out of scope.
 
 ## Reporting a security issue
 
-Until a public disclosure address is established, report security issues privately to the
-repository owner and do not publish exploit details.
+GitHub Private Vulnerability Reporting is the intended private disclosure channel. It must be
+enabled on the future official repository before that repository is made public. No disclosure
+email address is designated. Do not file a public issue containing vulnerability details.

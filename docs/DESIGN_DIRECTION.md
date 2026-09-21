@@ -1,6 +1,6 @@
 # WebGuard Interface Design Direction
 
-Phase 9 implements the public-facing CyberNet WebGuard product surface with the supplied CyberNet
+Phase 9 implements the public-facing WebGuard product surface with Bashar Asaad's supplied personal
 mark unchanged. The mark's dark navy and cyan establish the exact visual anchor; product text and
 code-native interface icons remain separate from the brand asset.
 

@@ -91,7 +91,7 @@ def test_version_exposes_only_public_compatibility_fields(make_scan_result) -> N
 
     assert response.status_code == 200
     assert response.json() == {
-        "webguard_version": "0.1.0.dev0",
+        "webguard_version": "0.1.0",
         "api_version": "v1",
         "api_schema_version": "1.0",
         "report_schema_version": "1.0",

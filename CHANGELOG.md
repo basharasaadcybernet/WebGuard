@@ -3,9 +3,16 @@
 All notable changes will be recorded here. This project uses semantic versioning once releases
 begin.
 
-## Unreleased
+## [0.1.0] - Unreleased
+
+Release candidate prepared for owner review. No Git tag or public release has been created.
 
 ### Added
+
+- MIT licensing for the original source code, a separate personal-branding policy, and public
+  release documentation under Bashar Asaad's publisher identity.
+- Cross-platform CLI and local-Docker quick starts, troubleshooting, authorized-use guidance, and
+  explicit assessment limitations.
 
 - Phase 10 development/test/production configuration profiles with fail-closed production Host,
   CORS, debug, trusted-proxy, logging, bind, rate, concurrency, body, and timeout validation.
@@ -73,7 +80,7 @@ begin.
   client-disconnect cancellation, request-body limits, Host validation, and allowlisted CORS.
 - Controlled API tests for completed/partial/failed scans, withheld/capped scores, findings,
   privacy, SSRF rejection, malformed requests, overload, rate, cancellation, CORS, and architecture.
-- Phase 9 CyberNet-branded React, TypeScript, and Vite frontend with responsive landing, truthful
+- Phase 9 Bashar Asaad-branded React, TypeScript, and Vite frontend with responsive landing, truthful
   scan progress, completed/partial/failed result states, score and cap presentation, category and
   severity summaries, expandable findings, client-side severity filters, limitations, and an
   optional configurable professional-contact CTA.

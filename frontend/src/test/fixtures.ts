@@ -71,7 +71,7 @@ export function makeScore(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdo
 export function makeReport(overrides: Partial<ReportDocument> = {}): ReportDocument {
   return {
     report_schema_version: "1.0",
-    webguard_version: "0.1.0.dev0",
+    webguard_version: "0.1.0",
     target: {
       scheme: "https",
       hostname: "example.com",
@@ -84,7 +84,7 @@ export function makeReport(overrides: Partial<ReportDocument> = {}): ReportDocum
       started_at: "2026-09-14T10:00:00Z",
       finished_at: "2026-09-14T10:00:01Z",
       duration_ms: 1250,
-      webguard_version: "0.1.0.dev0",
+      webguard_version: "0.1.0",
       ruleset_version: "1.0",
       redirect_count: 0,
       state: "COMPLETED",

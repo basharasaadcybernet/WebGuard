@@ -101,7 +101,7 @@ class HtmlReportRenderer:
         metadata = report.scan_metadata
         return (
             '<header class="cover">'
-            '<p class="eyebrow">CyberNet WebGuard</p>'
+            '<p class="eyebrow">WebGuard by Bashar Asaad</p>'
             "<h1>Web Security Posture Assessment</h1>"
             '<p class="lede">A bounded, passive review of externally visible controls.</p>'
             '<dl class="metadata">'

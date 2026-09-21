@@ -1,7 +1,26 @@
 # Command-line interface
 
-The installed `webguard` command is the local Phase 7 interface to the same `ScanEngine` used by
-future adapters.
+The installed `webguard` command is the local interface to the same `ScanEngine` used by the REST
+API. Python 3.12 or newer is required.
+
+## Installation
+
+From the repository root on Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+```
+
+On Linux or macOS:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install .
+```
+
+To install a downloaded GitHub Release Wheel, replace `.` with the Wheel path. WebGuard v0.1.0 is
+not documented as a PyPI or standalone-executable distribution.
 
 ```powershell
 webguard --help
@@ -72,4 +91,21 @@ either shell, run:
 
 ```text
 deactivate
+```
+
+## Linux and macOS usage
+
+Activation is optional. From the repository directory, either activate the environment or invoke
+the executable directly:
+
+```bash
+source .venv/bin/activate
+webguard scan https://example.com
+deactivate
+```
+
+Equivalent direct invocation:
+
+```bash
+.venv/bin/webguard scan https://example.com
 ```

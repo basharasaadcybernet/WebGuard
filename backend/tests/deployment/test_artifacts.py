@@ -19,6 +19,35 @@ def test_backend_runtime_image_is_non_root_and_excludes_dev_command() -> None:
     assert "pytest" not in runtime
 
 
+def test_public_release_metadata_is_mit_licensed_and_versioned() -> None:
+    pyproject = read("pyproject.toml")
+    package = read("backend/src/webguard/__init__.py")
+    dockerfile = read("Dockerfile.backend")
+    license_text = read("LICENSE")
+
+    assert 'version = "0.1.0"' in pyproject
+    assert 'license = "MIT"' in pyproject
+    assert 'license-files = ["LICENSE"]' in pyproject
+    assert 'authors = [{ name = "Bashar Asaad" }]' in pyproject
+    assert '__version__ = "0.1.0"' in package
+    assert "COPY pyproject.toml README.md LICENSE ./" in dockerfile
+    assert "MIT License" in license_text
+    assert "Copyright (c) 2026 Bashar Asaad" in license_text
+
+
+def test_public_identity_and_branding_policy_are_explicit() -> None:
+    readme = read("README.md")
+    branding = read("BRANDING.md")
+    index = read("frontend/index.html")
+
+    assert "Bashar Asaad" in readme
+    assert "Bashar Asaad" in index
+    assert "CyberNet WebGuard" not in readme
+    assert "CyberNet WebGuard" not in index
+    assert "No registered-trademark status is claimed" in branding
+    assert "cybernet-webguard" in branding
+
+
 def test_production_compose_keeps_backend_private_and_drops_privilege() -> None:
     compose = read("docker-compose.production.yml")
     backend = compose.split("  backend:", maxsplit=1)[1].split("  frontend:", maxsplit=1)[0]

@@ -11,7 +11,7 @@
 - [x] Deterministic, versioned posture scoring, coverage, exclusions, and transport caps (Phase 6).
 - [x] Professional CLI presentation and versioned JSON/self-contained HTML reports (Phase 7).
 - [x] Secure stateless REST API with bounded process controls (Phase 8).
-- [x] CyberNet-branded React/TypeScript web interface with secure API rendering (Phase 9).
+- [x] Bashar Asaad-branded React/TypeScript web interface with secure API rendering (Phase 9).
 - [x] Pre-production security and provider-neutral controlled-beta deployment hardening (Phase 10).
 
 The v0.1 functionality is frozen. The passive scanner, transparent scoring, CLI, reports, REST

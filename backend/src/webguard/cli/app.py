@@ -75,7 +75,7 @@ def create_app(scan_service: ScanService | None = None) -> typer.Typer:
     @application.command()
     def version() -> None:
         """Show the installed WebGuard software version."""
-        typer.echo(f"CyberNet WebGuard {__version__}")
+        typer.echo(f"WebGuard {__version__} by Bashar Asaad")
 
     @application.command()
     def scan(

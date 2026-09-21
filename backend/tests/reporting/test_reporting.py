@@ -41,7 +41,7 @@ def test_json_is_deterministic_versioned_and_automation_ready(make_scan_result) 
     assert first == second
     data = json.loads(first)
     assert data["report_schema_version"] == "1.0"
-    assert data["webguard_version"] == "0.1.0.dev0"
+    assert data["webguard_version"] == "0.1.0"
     assert data["completion_state"] == "COMPLETED"
     assert data["scan_metadata"]["ruleset_version"] == "0.1"
     assert data["score"]["scoring_version"] == "1.0"

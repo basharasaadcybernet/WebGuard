@@ -34,7 +34,7 @@ class TerminalRenderer:
     """Present report data without changing any scan or score semantics."""
 
     def render(self, report: ReportDocument, console: Console) -> None:
-        console.print(Text("CyberNet WebGuard", style="bold cyan"))
+        console.print(Text("WebGuard by Bashar Asaad", style="bold cyan"))
         console.print(Text("Web Security Posture Auditor", style="dim"))
         console.print()
         self._summary(report, console)

@@ -34,5 +34,5 @@ accept only HTTP or HTTPS schemes. A restrictive CSP blocks scripts, connections
 and base-URL changes. Tests inject script tags, event attributes, malicious banners, cookie names,
 redirect text, evidence, descriptions, and unsafe URLs to verify they remain inert text.
 
-Generated output is intentionally neutral and isolated from a future CyberNet application theme,
+Generated output is intentionally neutral and isolated from the Bashar Asaad application theme,
 so branding can be changed without coupling presentation to scanning or scoring logic.

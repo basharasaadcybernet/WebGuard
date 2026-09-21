@@ -36,7 +36,7 @@ export function ScopeOverview() {
         {areas.map((area) => <span key={area}>{area}</span>)}
       </div>
       <p className="privacy-note">
-        <Icon name="lock" /> Phase 9 keeps results only in this page’s current memory. WebGuard v0.1
+        <Icon name="lock" /> This interface keeps results only in this page’s current memory. WebGuard v0.1
         has no persistent scan-history database.
       </p>
     </section>

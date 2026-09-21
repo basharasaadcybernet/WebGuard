@@ -107,7 +107,7 @@ def create_app(
             logger.info("API process stopped")
 
     application = FastAPI(
-        title="CyberNet WebGuard API",
+        title="WebGuard API by Bashar Asaad",
         summary="Safe passive web security posture scanning.",
         description=(
             "A stateless adapter over WebGuard's protected ScanEngine. Security findings are "

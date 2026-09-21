@@ -3,10 +3,10 @@ import { Icon } from "./Icon";
 export function AppHeader() {
   return (
     <header className="site-header">
-      <a className="brand" href="#top" aria-label="CyberNet WebGuard home">
+      <a className="brand" href="#top" aria-label="Bashar Asaad WebGuard home">
         <img src="/brand/logo.svg" width="42" height="42" alt="" />
         <span className="brand-copy">
-          <strong>CyberNet</strong>
+          <strong>Bashar Asaad</strong>
           <span>WebGuard</span>
         </span>
       </a>

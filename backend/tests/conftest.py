@@ -192,7 +192,7 @@ def sample_scan_result(
             started_at=datetime(2026, 9, 13, 12, 0, tzinfo=UTC),
             finished_at=datetime(2026, 9, 13, 12, 0, 1, tzinfo=UTC),
             duration_ms=1000,
-            webguard_version="0.1.0.dev0",
+            webguard_version="0.1.0",
             ruleset_version="0.1",
             redirect_count=1,
             state=state,

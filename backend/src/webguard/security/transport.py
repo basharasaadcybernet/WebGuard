@@ -351,7 +351,7 @@ class HttpxPinnedTransport:
                     headers={
                         "Accept": "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.1",
                         "Accept-Encoding": "identity",
-                        "User-Agent": "CyberNet-WebGuard/0.1",
+                        "User-Agent": "WebGuard/0.1",
                     },
                 ) as response:
                     content_encoding = response.headers.get("content-encoding", "identity").lower()

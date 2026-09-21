@@ -35,7 +35,7 @@ describe("WebGuard application flow", () => {
   it("renders a complete initial state with the real product identity and scope", () => {
     render(<App />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("security posture");
-    expect(screen.getByRole("link", { name: "CyberNet WebGuard home" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Bashar Asaad WebGuard home" })).toBeInTheDocument();
     expect(document.querySelector('img[src="/brand/logo.svg"]')).toBeInTheDocument();
     expect(screen.getByText("Transport")).toBeInTheDocument();
     expect(screen.getByText(/no persistent scan-history database/i)).toBeInTheDocument();
