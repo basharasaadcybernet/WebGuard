@@ -53,10 +53,9 @@ The user-facing branding is concentrated in:
 - the self-contained HTML report heading.
 
 Replacing those assets and strings does not require changing the `webguard` Python import path,
-the `webguard` and `webguard-api` commands, `/api/v1/` routes, or report/ruleset identifiers.
-Historical technical identifiers such as the `cybernet-webguard` Python distribution and Docker
-Compose project name are retained for compatibility; they do not identify CyberNet as this
-release's publisher and do not confer official status.
+the `webguard` command, `/api/v1/` routes, or report/ruleset identifiers. The historical
+`cybernet-webguard` Python distribution identifier is retained for compatibility; it does not
+identify CyberNet as this release's publisher and does not confer official status.
 
 ## Questions and permissions
 

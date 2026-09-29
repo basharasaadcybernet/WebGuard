@@ -53,3 +53,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Verify committed web bundle is current
+        run: git diff --exit-code -- ../backend/src/webguard/web/static

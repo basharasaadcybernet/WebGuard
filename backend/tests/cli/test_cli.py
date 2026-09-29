@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from webguard.cli.app import ExitCode, create_app
 from webguard.domain.enums import ScanErrorKind, ScanState
 from webguard.domain.models import ScanError
+from webguard.web.server import LocalWebError
 
 runner = CliRunner()
 
@@ -23,8 +24,41 @@ def test_help_and_version_commands() -> None:
     assert help_result.exit_code == ExitCode.SUCCESS
     assert "Safe, passive web security posture auditing" in help_result.stdout
     assert "scan" in help_result.stdout
+    assert "web" in help_result.stdout
     assert version_result.exit_code == ExitCode.SUCCESS
     assert version_result.stdout.strip() == "WebGuard 0.1.0 by Bashar Asaad"
+
+
+def test_web_command_uses_safe_defaults_and_explicit_options() -> None:
+    calls: list[tuple[str, int | None, bool]] = []
+
+    def fake_web(host: str, port: int | None, open_browser: bool) -> None:
+        calls.append((host, port, open_browser))
+
+    application = create_app(web_service=fake_web)
+    default_result = runner.invoke(application, ["web"])
+    custom_result = runner.invoke(
+        application,
+        ["web", "--host", "localhost", "--port", "8080", "--no-open"],
+    )
+
+    assert default_result.exit_code == ExitCode.SUCCESS
+    assert custom_result.exit_code == ExitCode.SUCCESS
+    assert calls == [("127.0.0.1", None, True), ("localhost", 8080, False)]
+
+
+def test_web_command_reports_public_startup_errors_without_traceback() -> None:
+    def fail_web(_host: str, _port: int | None, _open_browser: bool) -> None:
+        raise LocalWebError("Port 8080 is unavailable.")
+
+    result = runner.invoke(
+        create_app(web_service=fail_web),
+        ["web", "--port", "8080", "--no-open"],
+    )
+
+    assert result.exit_code == ExitCode.INVALID_INPUT
+    assert "Port 8080 is unavailable" in result.stderr
+    assert "traceback" not in (result.stdout + result.stderr).lower()
 
 
 def test_completed_human_scan_is_professional_and_successful(make_scan_result) -> None:  # type: ignore[no-untyped-def]

@@ -11,8 +11,9 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.staticfiles import StaticFiles
 
 from webguard import __version__
 from webguard.api.config import ApiSettings
@@ -36,6 +37,7 @@ from webguard.domain.models import ScanRequest, ScanResult
 from webguard.reporting import REPORT_SCHEMA_VERSION, ReportBuilder
 from webguard.scanner import ScanEngine
 from webguard.scoring import load_scoring_config
+from webguard.web.assets import static_directory
 
 logger = logging.getLogger("webguard.api")
 ScanService = Callable[[ScanRequest], Coroutine[Any, Any, ScanResult]]
@@ -59,7 +61,7 @@ async def execute_scan(
 ) -> ScanResult:
     """Run one cancellable scan under a deadline and cancel orphaned work."""
     task: asyncio.Task[ScanResult] = asyncio.create_task(
-        service(scan_request), name="webguard-api-scan"
+        service(scan_request), name="webguard-scan"
     )
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout_seconds
@@ -294,6 +296,23 @@ def create_app(
             duration_ms,
         )
         return ScanApiResponse(request_id=request_id, report=report_builder.build(result))
+
+    frontend = static_directory()
+
+    @application.get("/", include_in_schema=False)
+    async def web_interface() -> FileResponse:
+        return FileResponse(frontend / "index.html", media_type="text/html")
+
+    application.mount(
+        "/assets",
+        StaticFiles(directory=frontend / "assets"),
+        name="web-assets",
+    )
+    application.mount(
+        "/brand",
+        StaticFiles(directory=frontend / "brand"),
+        name="web-brand",
+    )
 
     return application
 

@@ -27,6 +27,7 @@ from webguard.reporting import (
     write_new_report,
 )
 from webguard.scanner import ScanEngine
+from webguard.web.server import LocalWebError, run_local_web
 
 
 class ExitCode(IntEnum):
@@ -43,6 +44,7 @@ class OutputFormat(StrEnum):
 
 
 ScanService = Callable[[ScanRequest], ScanResult]
+WebService = Callable[[str, int | None, bool], None]
 
 
 def _default_scan_service(request: ScanRequest) -> ScanResult:
@@ -60,9 +62,13 @@ def exit_code_for(result: ScanResult) -> ExitCode:
     return ExitCode.SCAN_FAILURE
 
 
-def create_app(scan_service: ScanService | None = None) -> typer.Typer:
+def create_app(
+    scan_service: ScanService | None = None,
+    web_service: WebService | None = None,
+) -> typer.Typer:
     """Create the small CLI application, allowing deterministic test injection."""
     runner = scan_service or _default_scan_service
+    web_runner = web_service or run_local_web
     application = typer.Typer(
         name="webguard",
         help="Safe, passive web security posture auditing.",
@@ -76,6 +82,35 @@ def create_app(scan_service: ScanService | None = None) -> typer.Typer:
     def version() -> None:
         """Show the installed WebGuard software version."""
         typer.echo(f"WebGuard {__version__} by Bashar Asaad")
+
+    @application.command()
+    def web(
+        host: Annotated[
+            str,
+            typer.Option("--host", help="Local loopback host: 127.0.0.1, localhost, or ::1."),
+        ] = "127.0.0.1",
+        port: Annotated[
+            int | None,
+            typer.Option(
+                "--port",
+                min=1,
+                max=65535,
+                help="Local port. Omit it to select an available port automatically.",
+            ),
+        ] = None,
+        no_open: Annotated[
+            bool,
+            typer.Option("--no-open", help="Do not open the default browser automatically."),
+        ] = False,
+    ) -> None:
+        """Run the complete bundled WebGuard interface locally."""
+        try:
+            web_runner(host, port, not no_open)
+        except LocalWebError as exc:
+            _error(str(exc))
+            raise typer.Exit(ExitCode.INVALID_INPUT) from None
+        except KeyboardInterrupt:
+            typer.echo("WebGuard web interface stopped.")
 
     @application.command()
     def scan(

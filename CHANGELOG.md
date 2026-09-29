@@ -11,16 +11,15 @@ Release candidate prepared for owner review. No Git tag or public release has be
 
 - MIT licensing for the original source code, a separate personal-branding policy, and public
   release documentation under Bashar Asaad's publisher identity.
-- Cross-platform CLI and local-Docker quick starts, troubleshooting, authorized-use guidance, and
-  explicit assessment limitations.
+- Cross-platform CLI and one-command local web quick starts, troubleshooting, authorized-use
+  guidance, and explicit assessment limitations.
 
 - Phase 10 development/test/production configuration profiles with fail-closed production Host,
   CORS, debug, trusted-proxy, logging, bind, rate, concurrency, body, and timeout validation.
 - Defensive API security/cache headers, JSON-only scan requests, duplicate-field rejection,
   metadata-only lifecycle/scan logging, and explicit allowlisted Uvicorn proxy handling.
-- Non-root multi-stage backend and static frontend containers, a hardened production Compose
-  example, minimal same-origin Nginx gateway, environment template, deployment guide, and practical
-  controlled-beta checklist.
+- A bundled, same-process local web workflow with automatic loopback port selection, browser
+  opening, fixed-port/host controls, secure static-file headers, and no second end-user server.
 - Production regression coverage for configuration failure, CORS/Host policy, sanitized errors,
   no-store/security headers, media type, duplicate JSON fields, proxy trust, and cancellation.
 
@@ -74,8 +73,8 @@ Release candidate prepared for owner review. No Git tag or public release has be
   methodology, technical references, print styling, and no runtime network dependency.
 - Phase 8 FastAPI adapter with versioned health, version, and stateless scan endpoints over the
   existing `ScanEngine` and `ReportDocument` contracts.
-- Stable API success/error schemas, UUID correlation IDs, documented HTTP status semantics, and a
-  verified `webguard-api` development-server entry point.
+- Stable API success/error schemas, UUID correlation IDs, documented HTTP status semantics, and an
+  internal same-origin adapter used by `webguard web`.
 - Configurable immediate scan admission, bounded-memory per-peer rate limiting, API scan deadlines,
   client-disconnect cancellation, request-body limits, Host validation, and allowlisted CORS.
 - Controlled API tests for completed/partial/failed scans, withheld/capped scores, findings,

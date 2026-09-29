@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from webguard.api import ApiSettings, RuntimeEnvironment, create_app
-from webguard.api.cli import main
 from webguard.api.models import ScanApiRequest
 
 
@@ -116,38 +115,6 @@ def test_unknown_path_and_wrong_method_use_stable_errors() -> None:
     assert wrong_method.json()["code"] == "METHOD_NOT_ALLOWED"
 
 
-def test_api_entrypoint_uses_safe_local_defaults(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    captured: dict[str, object] = {}
-
-    def fake_run(app: str, **kwargs: object) -> None:
-        captured["app"] = app
-        captured.update(kwargs)
-
-    monkeypatch.delenv("WEBGUARD_BIND_HOST", raising=False)
-    monkeypatch.delenv("WEBGUARD_BIND_PORT", raising=False)
-    monkeypatch.setattr("webguard.api.cli.uvicorn.run", fake_run)
-    main()
-    assert captured == {
-        "app": "webguard.api:create_app",
-        "factory": True,
-        "host": "127.0.0.1",
-        "port": 8000,
-        "log_level": "info",
-        "access_log": False,
-        "server_header": False,
-        "proxy_headers": False,
-        "forwarded_allow_ips": "",
-        "workers": 1,
-    }
-
-
-@pytest.mark.parametrize("port", ["invalid", "0", "65536"])
-def test_api_entrypoint_rejects_invalid_port(monkeypatch, port: str) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setenv("WEBGUARD_BIND_PORT", port)
-    with pytest.raises(SystemExit, match="WEBGUARD_BIND_PORT"):
-        main()
-
-
 def test_production_requires_explicit_network_facing_configuration() -> None:
     with pytest.raises(ValueError, match="WEBGUARD_BIND_HOST"):
         ApiSettings.from_env({"WEBGUARD_ENV": "production"})
@@ -190,18 +157,3 @@ def test_production_rejects_dangerous_direct_settings(overrides: dict[str, objec
     values.update(overrides)
     with pytest.raises(ValueError):
         ApiSettings(**values)  # type: ignore[arg-type]
-
-
-def test_entrypoint_enables_forwarded_headers_only_for_allowlisted_proxy(
-    monkeypatch,
-) -> None:  # type: ignore[no-untyped-def]
-    captured: dict[str, object] = {}
-
-    def fake_run(_app: str, **kwargs: object) -> None:
-        captured.update(kwargs)
-
-    monkeypatch.setenv("WEBGUARD_TRUSTED_PROXIES", "192.0.2.10")
-    monkeypatch.setattr("webguard.api.cli.uvicorn.run", fake_run)
-    main()
-    assert captured["proxy_headers"] is True
-    assert captured["forwarded_allow_ips"] == "192.0.2.10"

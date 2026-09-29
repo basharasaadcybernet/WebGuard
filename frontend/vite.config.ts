@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   build: {
+    outDir: "../backend/src/webguard/web/static",
+    emptyOutDir: true,
     sourcemap: false,
   },
   server: {

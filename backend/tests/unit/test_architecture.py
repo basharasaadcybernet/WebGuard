@@ -30,9 +30,11 @@ def test_http_client_libraries_are_confined_to_pinned_transport() -> None:
 
 def test_raw_socket_access_is_confined_to_security_boundary() -> None:
     source_root = Path(__file__).parents[2] / "src" / "webguard"
+    local_listener = source_root / "web" / "server.py"
     allowed = {
         source_root / "security" / "resolver.py",
         source_root / "security" / "transport.py",
+        local_listener,
     }
     violations: list[str] = []
 
@@ -49,7 +51,23 @@ def test_raw_socket_access_is_confined_to_security_boundary() -> None:
                 violations.append(str(path.relative_to(source_root)))
 
     assert not violations, (
-        f"Raw socket access must remain inside the security boundary. Violations: {violations}"
+        "Raw sockets must remain in the protected outbound boundary or the loopback-only "
+        f"listener bootstrap. Violations: {violations}"
+    )
+
+    listener_tree = ast.parse(
+        local_listener.read_text(encoding="utf-8"), filename=str(local_listener)
+    )
+    outbound_calls = {
+        node.func.attr
+        for node in ast.walk(listener_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"connect", "connect_ex", "send", "sendall", "recv", "recvfrom"}
+    }
+    assert not outbound_calls, (
+        "The local listener may reserve a loopback port but must not perform outbound I/O. "
+        f"Calls: {sorted(outbound_calls)}"
     )
 
 

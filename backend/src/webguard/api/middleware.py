@@ -24,6 +24,18 @@ API_SECURITY_HEADERS: Final = {
     "X-Frame-Options": "DENY",
 }
 
+WEB_SECURITY_HEADERS: Final = {
+    "Content-Security-Policy": (
+        "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; "
+        "form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; "
+        "object-src 'none'; script-src 'self'; style-src 'self'"
+    ),
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+}
+
 
 class _DuplicateJsonKey(ValueError):
     """Internal signal for an ambiguous JSON object."""
@@ -59,14 +71,23 @@ class ApiBoundaryMiddleware:
                 headers = list(message.get("headers", ()))
                 if not any(name.lower() == b"x-request-id" for name, _ in headers):
                     headers.append((b"x-request-id", str(request_id).encode("ascii")))
-                if str(scope.get("path", "")).startswith("/api/"):
-                    encoded = tuple(
-                        (name.lower().encode("ascii"), value.encode("ascii"))
-                        for name, value in API_SECURITY_HEADERS.items()
+                path = str(scope.get("path", ""))
+                if path.startswith("/api/"):
+                    policy = API_SECURITY_HEADERS
+                else:
+                    cache_control = (
+                        "public, max-age=31536000, immutable"
+                        if path.startswith("/assets/")
+                        else "no-cache"
                     )
-                    protected = {name for name, _ in encoded}
-                    headers = [item for item in headers if item[0].lower() not in protected]
-                    headers.extend(encoded)
+                    policy = {**WEB_SECURITY_HEADERS, "Cache-Control": cache_control}
+                encoded = tuple(
+                    (name.lower().encode("ascii"), value.encode("ascii"))
+                    for name, value in policy.items()
+                )
+                protected = {name for name, _ in encoded}
+                headers = [item for item in headers if item[0].lower() not in protected]
+                headers.extend(encoded)
                 message["headers"] = headers
             await send(message)
 

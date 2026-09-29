@@ -527,7 +527,6 @@ pins approved public destinations, infrastructure should independently block pri
 metadata services, management interfaces, and unnecessary ports. Independent controls are called
 **defense in depth**: failure of one layer does not automatically expose the protected network.
 
-A **container** packages one predictable process. Running as a **non-root** user, dropping Linux
-capabilities, preventing privilege escalation, and making the filesystem read-only reduce damage
-if that process is compromised. Containers are isolation tools, not a substitute for patching,
-resource limits, network policy, or an incident/rollback plan.
+For WebGuard's current local workflow, the Python process serves the bundled page and API on one
+loopback origin. A loopback bind prevents accidental LAN exposure, but it does not replace patching,
+resource limits, outbound network policy, or careful use on authorized targets.

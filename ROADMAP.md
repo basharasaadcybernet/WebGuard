@@ -15,6 +15,6 @@
 - [x] Pre-production security and provider-neutral controlled-beta deployment hardening (Phase 10).
 
 The v0.1 functionality is frozen. The passive scanner, transparent scoring, CLI, reports, REST
-adapter, frontend, fail-closed production configuration, hardened container examples, and release
-checklist are complete through Phase 10. No public deployment was performed. Persistence, history,
-monitoring product features, accounts, payments, AI, PDF, and active assessment remain absent.
+adapter, bundled local frontend, loopback-only `webguard web` workflow, and release checklist are
+complete. No public deployment was performed. Persistence, history, monitoring product features,
+accounts, payments, AI, PDF, and active assessment remain absent.

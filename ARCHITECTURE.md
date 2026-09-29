@@ -150,8 +150,8 @@ React App -> useScan state machine -> typed API client -> POST /api/v1/scans
 
 The state machine is `idle -> scanning -> success | error`, with an AbortController for explicit
 cancellation and a bounded client timeout. Components never call `fetch` directly. The API client
-accepts only the configured base URL plus the fixed scan path and validates the public response
-shape before rendering it. Scanned data remains untrusted text; React escaping, scheme-validated
+uses only the fixed same-origin scan path and validates the public response shape before rendering
+it. Scanned data remains untrusted text; React escaping, scheme-validated
 reference links, and the absence of raw HTML insertion form the browser security boundary.
 
 Results receive the API's `ReportDocument` as their sole authority. The frontend formats decimal
@@ -159,25 +159,16 @@ fractions for display but does not compute a score, grade, cap, finding, or comp
 optional `expertRecommendations` component slot exists at the results boundary but Phase 9 does
 not populate it.
 
-Phase 10 wraps the frozen v0.1 application in a fail-closed production boundary. `ApiSettings`
-selects development, test, or production and validates bind, Host, CORS, proxy trust, logging, and
-bounded process-control environment values before serving traffic. Production requires explicit
-Host and CORS decisions, forbids debug, accepts only HTTPS cross-origin origins, and never accepts
-wildcard hosts or proxy trust. Uvicorn honors forwarded client data only from configured IP/CIDR
-peers; otherwise the direct ASGI peer remains authoritative.
+The local web workflow packages Vite's source-map-free build beneath `webguard.web.static`. The
+`webguard web` command chooses a loopback port, creates one FastAPI application, serves the page and
+fixed `/api/v1/` routes from the same origin, and optionally opens the browser. It rejects public
+or LAN bind addresses, disables forwarded-header trust, and needs no separate end-user frontend or
+API process.
 
-The application returns defensive no-store and browser-security headers for every `/api/`
-response. The provider-neutral deployment model places an unprivileged static/reverse-proxy
-container in front of one unprivileged API worker. The backend is not published, immediate 429/503
-controls remain process-local, and the reverse proxy adds the public rate, connection, body,
-timeout, TLS, cache, and frontend-CSP boundary. A separate egress network is shown so a deployment
-firewall can allow public DNS/HTTP/HTTPS while independently denying private, metadata, cluster,
-and management destinations.
-
-The runtime containers need no database, persistent volume, Docker socket, privileged mode, host
-network, writable root filesystem, or development dependency. Vite emits static assets with source
-maps disabled and an empty API base URL for the recommended same-origin topology. Separate-origin
-deployment remains available through a public build-time API URL plus an exact HTTPS CORS origin.
+The application returns defensive no-store headers for every `/api/` response. It revalidates HTML,
+permits long-lived caching only for fingerprinted `/assets/` files, and applies a restrictive web
+CSP plus browser-security headers. Existing request-size, Host, JSON-envelope, rate, concurrency,
+timeout, cancellation, logging, and SSRF boundaries remain unchanged.
 
 Phase 9.5 hardens the observation boundary: a missing landing response no longer makes dependent
 rules inapplicable. Those checks execute far enough to emit safe rule-linked operational errors,
@@ -198,9 +189,8 @@ Active exploitation, fuzzing, enumeration, and port scanning are outside product
 The transport selects the first validated public DNS address and does not yet retry another public
 answer if the connection fails. It requests identity encoding and fails closed when a server sends
 compressed content anyway; bounded streaming decompression can be added later without weakening
-the size limit. API admission/rate limits are process-local, so each worker has independent state.
-The supplied container tags are versioned but not digest-pinned, and infrastructure egress rules
-remain a deployment-operator responsibility.
+the size limit. API admission/rate limits are process-local. Public multi-user hosting and its
+infrastructure controls remain outside the local command's scope.
 
 Phase 8 adds controlled API contract, privacy, CORS, Host, size, rate, concurrency, timeout,
 cancellation, and architecture tests. The normal suite remains deterministic and never requires

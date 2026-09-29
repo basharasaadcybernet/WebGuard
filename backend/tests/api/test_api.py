@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from webguard.api import ApiSettings, RuntimeEnvironment, create_app
 from webguard.domain.enums import FindingStatus, ScanState, Severity
 from webguard.domain.models import Evidence, Finding, ScanRequest, ScanResult
+from webguard.web.assets import static_directory
 
 
 def settings(**overrides: object) -> ApiSettings:
@@ -62,6 +63,24 @@ def test_health_is_cheap_and_minimal(make_scan_result) -> None:  # type: ignore[
     assert response.json() == {"status": "ok"}
     assert calls == 0
     assert response.headers["x-request-id"]
+
+
+def test_bundled_web_interface_is_same_origin_and_hardened() -> None:
+    javascript = next((static_directory() / "assets").glob("*.js"))
+    with TestClient(create_app(settings=settings())) as client:
+        page = client.get("/")
+        asset = client.get(f"/assets/{javascript.name}")
+
+    assert page.status_code == 200
+    assert "WebGuard by Bashar Asaad" in page.text
+    assert "/api/v1/scans" in asset.text
+    assert page.headers["cache-control"] == "no-cache"
+    assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert "connect-src 'self'" in page.headers["content-security-policy"]
+    assert "script-src 'self'" in page.headers["content-security-policy"]
+    assert page.headers["x-content-type-options"] == "nosniff"
+    assert page.headers["referrer-policy"] == "no-referrer"
+    assert page.headers["x-frame-options"] == "DENY"
 
 
 def test_api_responses_have_no_store_and_defensive_security_headers(make_scan_result) -> None:  # type: ignore[no-untyped-def]

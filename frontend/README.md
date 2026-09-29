@@ -1,4 +1,6 @@
-# WebGuard frontend by Bashar Asaad
+# WebGuard frontend
 
-The Phase 9 React application lives in this directory. See `../docs/FRONTEND.md` for architecture,
-environment configuration, testing, and local development instructions.
+React, TypeScript, and Vite source for the interface bundled into the Python package. End users run
+`webguard web`; frontend tooling is needed only for development.
+
+See [`../docs/FRONTEND.md`](../docs/FRONTEND.md) for the workflow and security boundaries.

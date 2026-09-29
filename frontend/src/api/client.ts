@@ -1,11 +1,6 @@
 import { ApiClientError } from "./errors";
 import type { ApiErrorCode, ApiErrorResponse, ScanApiResponse } from "./types";
 
-const configuredBaseUrlValue: unknown = import.meta.env.VITE_WEBGUARD_API_URL;
-const configuredBaseUrl = typeof configuredBaseUrlValue === "string"
-  ? configuredBaseUrlValue.trim()
-  : "";
-const apiBaseUrl = configuredBaseUrl.replace(/\/$/, "");
 const defaultTimeoutMs = 100_000;
 
 type Fetcher = typeof fetch;
@@ -43,7 +38,7 @@ export async function scanTarget(
   timeoutController.signal.addEventListener("abort", abortFromTimeout, { once: true });
 
   try {
-    const response = await fetcher(`${apiBaseUrl}/api/v1/scans`, {
+    const response = await fetcher("/api/v1/scans", {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({ target }),
